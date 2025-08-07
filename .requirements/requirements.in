@@ -1,0 +1,5 @@
+# Project direct dependencies (no version) 
+# Handwritten 
+
+fastapi 
+supabase 
