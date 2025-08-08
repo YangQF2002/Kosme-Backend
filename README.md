@@ -72,5 +72,5 @@
     # http://localhost:8000/
     # http://<public-ip>:8000/
 
-    uvicorn app.main:app --reload --host 0.0.0.0 --port 5000
+    uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
     ```
