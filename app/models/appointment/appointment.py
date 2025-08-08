@@ -23,10 +23,10 @@ class PaymentMethod(str, Enum):
 
 
 class PaymentStatus(str, Enum):
-    PENDING = "pending"
-    PAID = "paid"
-    FAILED = "failed"
-    REFUNDED = "refunded"
+    PENDING = "Pending"
+    PAID = "Paid"
+    FAILED = "Failed"
+    REFUNDED = "Refunded"
 
 
 """

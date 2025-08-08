@@ -33,17 +33,15 @@ class CustomerCreate(BaseSchema):
     birthday: Optional[datetime] = None
 
     membership_type: Optional[str] = Field(None, max_length=50, alias="membershipType")
-    membership_status: MembershipStatusEnum = Field(
-        default=MembershipStatusEnum.INACTIVE, alias="membershipStatus"
-    )
+    membership_status: MembershipStatusEnum = Field(alias="membershipStatus")
 
     # Preferences
     preferred_therapist_id: Optional[int] = Field(
         None, alias="preferredTherapistId", gt=0
     )
     preferred_outlet_id: Optional[int] = Field(None, alias="preferredOutletId", gt=0)
-    allergies: List[str] = Field(default_factory=list)
-    reminders: ReminderEnum = Field(default=ReminderEnum.EMAIL_SMS)
+    allergies: List[str]
+    reminders: ReminderEnum
 
 
 """
@@ -57,8 +55,5 @@ class CustomerCreate(BaseSchema):
 class CustomerResponse(CustomerCreate):
     id: int = Field(..., gt=0)
 
-    credit_balance: int = Field(default=0)
-    created_at: datetime = Field(default_factory=datetime.now)
-
-    stripe_customer_id: Optional[str] = Field(None, max_length=255)
-    stripe_subscription_id: Optional[str] = Field(None, max_length=255)
+    credit_balance: int
+    created_at: datetime
