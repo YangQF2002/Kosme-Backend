@@ -13,13 +13,14 @@ from app.models._admin import BaseSchema
 
 class CategoryColorResponse(BaseSchema):
     name: str = Field(..., max_length=100)
-    hex: str = Field(..., min_length=7, max_length=7)
+    hex: str
 
     @field_validator("hex")
     @classmethod
     def validate_hex_format(cls, v: str) -> str:
         import re
 
-        if not re.match(r"^#[0-9A-Fa-f]{6}$", v):
-            raise ValueError("Hex must be in format #RRGGBB")
+        # Matches #RRGGBB or #RRGGBBAA
+        if not re.match(r"^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$", v):
+            raise ValueError("Hex must be in format #RRGGBB or #RRGGBBAA")
         return v.upper()

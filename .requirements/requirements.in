@@ -2,5 +2,6 @@
 # Handwritten 
 
 fastapi 
+python-dotenv
 supabase 
 uvicorn 

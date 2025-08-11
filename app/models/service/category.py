@@ -18,10 +18,19 @@ class ServiceCategoryUpsert(BaseSchema):
 
 """
     GET
-    1) /api/service-categories
-    2) /api/service-categories/:id
+    1) /api/service-categories/:id
 """
 
 
 class ServiceCategoryResponse(ServiceCategoryUpsert):
     id: int = Field(..., gt=0)
+
+
+"""
+    GET
+    1) /api/service-categories
+"""
+
+
+class ServiceCategoryWithCountResponse(ServiceCategoryResponse):
+    service_count: int = Field(..., ge=0)

@@ -4,7 +4,7 @@
 
 ### Useful Scripts 🤣
 
-1. `update-dependencies.sh`
+1. `update_dependencies.sh`
 
 ### Set Up 🤩
 
@@ -49,7 +49,7 @@
 
    ```
    cd .scripts
-   bash update-dependencies.sh
+   bash update_dependencies.sh
 
    cd ..
    pip install -r .requirements/requirements.txt

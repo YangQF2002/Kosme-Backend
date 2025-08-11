@@ -112,3 +112,23 @@ VALUES
   (3, 'Amanda', 'Ng', 'amanda.ng@email.com', '+65 9555 6666', NULL, NULL, 'Active', 5, 2, ARRAY['Essential oils', 'Parabens', 'Latex'], 'Email + SMS', 2, NOW()),
   (4, 'Michelle', 'Tan', 'michelle.tan@email.com', '+65 9777 8888', NULL, NULL, 'Active', 6, 2, ARRAY['Essential oils', 'Parabens', 'Latex'], 'Email + SMS', 2, NOW())
 ON CONFLICT (id) DO NOTHING;
+
+
+/* 
+  [Id sequence sync]
+  1) Supabase maintains an id sequence for each table (ensure unique pk)
+  2) We want to explicitly tell supabase to push the sequence up to max(id)
+
+  3a) So future inserts work
+  3b) So we can explicitly reference id in this script
+
+  4) Link tables are excluded since they do not use supabase's id field
+*/
+
+
+SELECT setval(pg_get_serial_sequence('outlets', 'id'), (SELECT MAX(id) FROM outlets));
+SELECT setval(pg_get_serial_sequence('service_categories_colors', 'id'), (SELECT MAX(id) FROM service_categories_colors));
+SELECT setval(pg_get_serial_sequence('service_categories', 'id'), (SELECT MAX(id) FROM service_categories));
+SELECT setval(pg_get_serial_sequence('services', 'id'), (SELECT MAX(id) FROM services));
+SELECT setval(pg_get_serial_sequence('staffs', 'id'), (SELECT MAX(id) FROM staffs));
+SELECT setval(pg_get_serial_sequence('customers', 'id'), (SELECT MAX(id) FROM customers));
