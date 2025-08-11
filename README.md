@@ -1,5 +1,7 @@
 # Kosme Backend 💙
 
+## FastAPI & Supabase 🥶
+
 ### Useful Scripts 🤣
 
 1. `update-dependencies.sh`
@@ -25,7 +27,7 @@
 
    <br>
 
-4. Go into the directory
+4. Go into the root directory
    ```
    cd kosme-backend
    ```
@@ -48,6 +50,7 @@
    ```
    cd .scripts
    bash update-dependencies.sh
+
    cd ..
    pip install -r .requirements/requirements.txt
    ```
@@ -74,3 +77,5 @@
 
     uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
     ```
+11. (Optional) Paste the `seed.sql` file into Supabase's SQL editor (to seed the database)
+    
