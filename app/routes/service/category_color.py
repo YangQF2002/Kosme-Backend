@@ -15,7 +15,7 @@ category_color_router = APIRouter(
 
 
 @category_color_router.get("", response_model=List[CategoryColorResponse])
-async def get_all_category_colors():
+def get_all_category_colors():
     try:
         category_colors = (
             supabase.from_("service_categories_colors").select("*").execute()

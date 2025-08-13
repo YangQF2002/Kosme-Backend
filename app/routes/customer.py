@@ -15,7 +15,7 @@ customer_router = APIRouter(
 
 
 @customer_router.get("", response_model=List[CustomerResponse])
-async def get_all_customers():
+def get_all_customers():
     try:
         customers = supabase.from_("customers").select("*").execute()
         return customers.data
@@ -26,7 +26,7 @@ async def get_all_customers():
 
 # Search over first name and last name
 @customer_router.get("/search", response_model=List[CustomerResponse])
-async def search_customers(search_query: str | None = None):
+def search_customers(search_query: str | None = None):
     try:
         # No query or all whitespace query
         if not search_query or not search_query.strip():
@@ -51,7 +51,7 @@ async def search_customers(search_query: str | None = None):
 
 
 @customer_router.get("/{customer_id}", response_model=CustomerResponse)
-async def get_customer(customer_id: int):
+def get_customer(customer_id: int):
     try:
         target_customer = (
             supabase.from_("customers")
@@ -74,7 +74,7 @@ async def get_customer(customer_id: int):
 
 
 @customer_router.post("", status_code=201)
-async def create_customer(customer_data: CustomerCreate):
+def create_customer(customer_data: CustomerCreate):
     try:
         create_details = customer_data.model_dump(mode="json")
         supabase.from_("customers").insert(create_details).execute()

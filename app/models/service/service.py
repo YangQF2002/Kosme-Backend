@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional
+from typing import List, Literal, Optional
 
 from pydantic import Field
 
@@ -33,6 +33,9 @@ class ServiceUpsert(BaseSchema):
     online_bookings: bool = Field(..., alias="onlineBookings")
     comissions: bool
 
+    # Locations
+    locations: List[Literal[1, 2]] = Field(..., min_length=1)  # outlet_id
+
 
 """
     GET 
@@ -41,5 +44,5 @@ class ServiceUpsert(BaseSchema):
 """
 
 
-class ServiceResponse(ServiceUpsert):
+class ServiceWithLocationsResponse(ServiceUpsert):
     id: int = Field(..., gt=0)

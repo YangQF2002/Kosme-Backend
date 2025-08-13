@@ -15,7 +15,7 @@ outlet_router = APIRouter(
 
 
 @outlet_router.get("", response_model=List[OutletResponse])
-async def get_all_outlets():
+def get_all_outlets():
     try:
         outlets = supabase.from_("outlets").select("*").execute()
         return outlets.data

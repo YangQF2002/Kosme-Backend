@@ -19,10 +19,10 @@ category_router = APIRouter(
 
 
 @category_router.get("", response_model=List[ServiceCategoryWithCountResponse])
-async def get_all_categories():
+def get_all_categories():
     try:
-        # Go to service FK table
-        # GROUP BY service_id, then COUNT over each group
+        # LEFT JOIN with services FK table
+        # GROUP BY service_category_id, then COUNT over each group
         # Each row is annotated with "services": [{"count": x}]
         response = (
             supabase.from_("service_categories").select("*, services(count)").execute()
@@ -49,7 +49,7 @@ async def get_all_categories():
 
 
 @category_router.get("/{category_id}", response_model=ServiceCategoryResponse)
-async def get_single_category(category_id: int):
+def get_single_category(category_id: int):
     try:
         response = (
             supabase.from_("service_categories")
@@ -83,22 +83,18 @@ async def get_single_category(category_id: int):
 
 # Update
 @category_router.put("/{category_id}")
-async def upsert_service_category_with_id(
-    category_id: int, category_data: ServiceCategoryUpsert
-):
-    return await _upsert_category(category_id, category_data)
+def update_service_category(category_id: int, category_data: ServiceCategoryUpsert):
+    return _upsert_category(category_id, category_data)
 
 
 # Create
 @category_router.put("", status_code=201)
-async def create_service_category(category_data: ServiceCategoryUpsert):
-    return await _upsert_category(None, category_data)
+def create_service_category(category_data: ServiceCategoryUpsert):
+    return _upsert_category(None, category_data)
 
 
 # Helper to handle both
-async def _upsert_category(
-    category_id: Optional[int], category_data: ServiceCategoryUpsert
-):
+def _upsert_category(category_id: Optional[int], category_data: ServiceCategoryUpsert):
     # Construct payload
     payload = category_data.model_dump(exclude_unset=True, by_alias=False)
 
@@ -120,7 +116,7 @@ async def _upsert_category(
         )
 
     except Exception as e:
-        logger.error(f"Error upserting category {category_id}: {str(e)}", exc_info=True)
+        logger.error(f"Error upserting category: {str(e)}", exc_info=True)
 
         # If the error is something the user can ACT on
         # Then reveal it to them
