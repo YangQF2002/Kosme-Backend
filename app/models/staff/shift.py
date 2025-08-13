@@ -21,8 +21,8 @@ class ShiftUpsert(BaseSchema):
 
 """
     GET
-    1) /api/shifts/:staff_id/:date
-    2) /api/shifts/:outlet_id/:date
+    1) /api/shifts/staff/:staff_id/:date
+    2) /api/shifts/outlet/:outlet_id/:date
   
 """
 

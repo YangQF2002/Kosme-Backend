@@ -1,10 +1,13 @@
 from calendar import monthrange
 from datetime import date, datetime, timedelta
-from typing import List
+from typing import List, Literal, Optional
 
 from dateutil.relativedelta import relativedelta
+from pydantic import BaseModel
+from utils.general import has_overlap
 
 from app.models.staff.blocked_time import BlockedTimeResponse, EndsType, FrequencyType
+from app.models.staff.staff import StaffBase
 from db.supabase import supabase
 
 """ 
@@ -110,3 +113,48 @@ def _is_date_in_occurrence_range(
         end_date = start_date + relativedelta(months=occurrences - 1)
 
     return _is_date_in_range(target_date, start_date, end_date, repeat_type)
+
+
+CalendarForms = Literal["Appointment", "Blocked time", "Time off", "Shift"]
+
+
+class HasOverlappingBlockedTimeArgs(BaseModel):
+    # Only required when blocked time checking against itself
+    blocked_time_id: Optional[int] = None
+    staff_id: int
+    staff: StaffBase
+    date_string: str  # YYYY-MM-DD
+    target_start_time: str  # HH:mm
+    target_end_time: str  # HH:mm
+    type: CalendarForms
+
+
+def _has_overlapping_blocked_times(args: HasOverlappingBlockedTimeArgs) -> None:
+    # Get blocked times for the staff on the given date
+    blocked_times = _get_blocked_times_by_staff_and_date(
+        args.staff_id, args.date_string
+    )
+
+    # Filter out the current blocked time if blocked_time_id is provided
+    staff_blocked_times = [
+        blocked_time
+        for blocked_time in blocked_times
+        if not args.blocked_time_id or blocked_time["id"] != args.blocked_time_id
+    ]
+
+    # Check for overlaps
+    has_overlapping = any(
+        has_overlap(
+            blocked_time["from_time"],
+            blocked_time["to_time"],
+            args.target_start_time,
+            args.target_end_time,
+        )
+        for blocked_time in staff_blocked_times
+    )
+
+    if has_overlapping:
+        raise ValueError(
+            f"{args.type} {args.target_start_time}-{args.target_end_time} "
+            f"by staff {args.staff.first_name} has clashing blocked times."
+        )

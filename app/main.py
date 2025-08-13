@@ -7,6 +7,7 @@ from app.routes.service.category_color import category_color_router
 from app.routes.service.service import service_router
 from app.routes.staff.shift import shift_router
 from app.routes.staff.staff import staff_router
+from app.routes.staff.time_off import time_off_router
 
 app = FastAPI()
 
@@ -22,6 +23,7 @@ app.include_router(service_router)
 # Routers managing staffs
 app.include_router(staff_router)
 app.include_router(shift_router)
+app.include_router(time_off_router)
 
 
 # Test route

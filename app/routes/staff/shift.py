@@ -24,7 +24,7 @@ shift_router = APIRouter(
 """
 
 
-@shift_router.get("{staff_id}/{date}", response_model=ShiftResponse)
+@shift_router.get("/staff/{staff_id}/{date}", response_model=ShiftResponse)
 def get_shifts_by_staff_and_date(staff_id: int, date: str):
     try:
         shift = (
@@ -51,7 +51,7 @@ def get_shifts_by_staff_and_date(staff_id: int, date: str):
         raise HTTPException(status_code=500, detail="Failed to get staff shift")
 
 
-@shift_router.get("{outlet_id}/{date}", response_model=List[ShiftResponse])
+@shift_router.get("/outlet/{outlet_id}/{date}", response_model=List[ShiftResponse])
 def get_shifts_by_outlet_and_date(outlet_id: int, date: str):
     if outlet_id not in [1, 2]:
         raise HTTPException(status_code=400, detail="Invalid outlet id")
@@ -89,7 +89,7 @@ def create_shift(shift_data: ShiftUpsert):
 
 # Update
 @shift_router.put("/{shift_id}")
-def update_staff(shift_id: int, shift_data: ShiftUpsert):
+def update_shift(shift_id: int, shift_data: ShiftUpsert):
     return _upsert_shift(shift_id, shift_data)
 
 
@@ -155,7 +155,7 @@ def _upsert_shift(shift_id: Optional[int], shift_data: ShiftUpsert):
                 status_code=400, detail="Existing blocked times fall outside new hours"
             )
 
-        # After passing the cross validations
+        # After passing the cross checks
         # Then only do we perform the upsert
         response = supabase.from_("shifts").upsert(payload).execute()
 

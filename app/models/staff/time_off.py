@@ -44,7 +44,7 @@ class TimeOffUpsert(BaseSchema):
 """
     GET
     1) /api/time-offs/:time_off_id
-    2) /api/time-offs/staffs/:outlet_id/:date
+    2) /api/time-offs/outlet/:outlet_id/:date
 """
 
 

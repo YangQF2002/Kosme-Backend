@@ -1,5 +1,9 @@
-from typing import List
+from typing import List, Literal, Optional
 
+from pydantic import BaseModel
+from utils.general import has_overlap
+
+from app.models.staff.staff import StaffBase
 from app.models.staff.time_off import TimeOffResponse
 from db.supabase import supabase
 
@@ -10,20 +14,78 @@ from db.supabase import supabase
 
 
 def _get_time_offs_by_staff_and_date(staff_id: int, date: str) -> List[TimeOffResponse]:
-    all_time_offs: List[TimeOffResponse] = (
+    all_time_offs = (
         supabase.from_("time_offs").select("*").eq("staff_id", staff_id).execute()
     ).data
 
+    return _filter_by_frequency(all_time_offs, date)
+
+
+def _get_time_offs_by_outlet_and_date(
+    outlet_id: int, date: str
+) -> List[TimeOffResponse]:
+    all_time_offs = (
+        supabase.from_("time_offs").select("*").eq("outlet_id", outlet_id).execute()
+    ).data
+
+    return _filter_by_frequency(all_time_offs, date)
+
+
+def _filter_by_frequency(
+    all_time_offs: List[TimeOffResponse], date: str
+) -> List[TimeOffResponse]:
     # Filter based on frequency type
     valid_time_offs = []
     for time_off in all_time_offs:
-        if time_off["frequency"] == "none":
-            # Single day - check exact date match
+        if time_off["frequency"] == "None":
             if time_off["start_date"] == date:
                 valid_time_offs.append(time_off)
         else:
-            # Recurring - check if date is in range
+            # Repeat
             if time_off["start_date"] <= date <= time_off["ends_date"]:
                 valid_time_offs.append(time_off)
 
     return valid_time_offs
+
+
+CalendarForms = Literal["Appointment", "Blocked time", "Time off", "Shift"]
+
+
+class HasOverlappingTimeOffsArgs(BaseModel):
+    # Only required when time off checking against itself
+    time_off_id: Optional[int] = None
+    staff_id: int
+    staff: StaffBase
+    date_string: str  # YYYY-MM-DD
+    target_start_time: str  # HH:mm
+    target_end_time: str  # HH:mm
+    type: CalendarForms
+
+
+def _has_overlapping_time_offs(args: HasOverlappingTimeOffsArgs) -> None:
+    # Get time offs for the staff on the given date
+    time_offs = _get_time_offs_by_staff_and_date(args.staff_id, args.date_string)
+
+    # Filter out the current time off if time_off_id is provided
+    staff_time_offs = [
+        time_off
+        for time_off in time_offs
+        if not args.time_off_id or time_off["id"] != args.time_off_id
+    ]
+
+    # Check for overlaps
+    has_overlapping = any(
+        has_overlap(
+            time_off["start_time"],
+            time_off["end_time"],
+            args.target_start_time,
+            args.target_end_time,
+        )
+        for time_off in staff_time_offs
+    )
+
+    if has_overlapping:
+        raise ValueError(
+            f"{args.type} {args.target_start_time}-{args.target_end_time} "
+            f"by staff {args.staff.first_name} has clashing time offs."
+        )
