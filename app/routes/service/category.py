@@ -73,7 +73,7 @@ def get_single_category(category_id: int):
 
 """ 
    [FastAPI and Upsert] 
-   1) I don't think it supports optional path params (eg: /:id?)
+   1) I don't think it supports optional path params (eg: /:category_id?)
 
    2) So, we need to split into two separate routes 
    3) However, they utilize the same upsert helper method
@@ -81,16 +81,16 @@ def get_single_category(category_id: int):
 """
 
 
-# Update
-@category_router.put("/{category_id}")
-def update_service_category(category_id: int, category_data: ServiceCategoryUpsert):
-    return _upsert_category(category_id, category_data)
-
-
 # Create
 @category_router.put("", status_code=201)
 def create_service_category(category_data: ServiceCategoryUpsert):
     return _upsert_category(None, category_data)
+
+
+# Update
+@category_router.put("/{category_id}")
+def update_service_category(category_id: int, category_data: ServiceCategoryUpsert):
+    return _upsert_category(category_id, category_data)
 
 
 # Helper to handle both

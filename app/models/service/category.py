@@ -6,7 +6,7 @@ from app.models._admin import BaseSchema
 
 """
     PUT
-    1) /api/service-categories/:id?
+    1) /api/service-categories/:category_id?
 """
 
 
@@ -18,7 +18,7 @@ class ServiceCategoryUpsert(BaseSchema):
 
 """
     GET
-    1) /api/service-categories/:id
+    1) /api/service-categories/:category_id
 """
 
 

@@ -31,7 +31,7 @@ class PaymentStatus(str, Enum):
 
 """
     PUT
-    1) /api/appointments/:id?
+    1) /api/appointments/:appointment_id?
 """
 
 
@@ -60,8 +60,9 @@ class AppointmentUpsert(BaseSchema):
 """
     GET
     1) /api/appointments
-    2) /api/appointments/:id
-    3) /api/appointments/:outletId/:date
+    2) /api/appointments/:appointment_id
+    3) /api/appointments/:outlet_id/:date
+    4) /api/customers/:customer_id/appointments
 """
 
 

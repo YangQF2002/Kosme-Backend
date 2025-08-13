@@ -3,7 +3,11 @@ from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
 
-from app.models.service.service import ServiceUpsert, ServiceWithLocationsResponse
+from app.models.service.service import (
+    ServiceUpsert,
+    ServiceWithLocationsResponse,
+    ServiceWithoutLocationsResponse,
+)
 from db.supabase import supabase
 
 logger = logging.getLogger(__name__)
@@ -40,11 +44,43 @@ def get_all_services():
         raise HTTPException(status_code=500, detail="Failed to get all services")
 
 
+@service_router.get(
+    "/outlet/{outlet_id}", response_model=List[ServiceWithoutLocationsResponse]
+)
+def get_all_services_from_outlet(outlet_id: int):
+    if outlet_id not in [1, 2]:
+        raise HTTPException(status_code=400, detail="Invalid outlet id")
+
+    try:
+        response = (
+            supabase.from_("service_outlet")
+            .select("service_id, services(*)")
+            .eq("outlet_id", outlet_id)
+            .execute()
+        )
+
+        # Extract service data from the joined response
+        services = [item["services"] for item in response.data]
+        return services
+
+    except Exception as e:
+        logger.error(
+            f"Error fetching services from outlet {outlet_id}: {str(e)}", exc_info=True
+        )
+        raise HTTPException(
+            status_code=500, detail="Failed to get services from outlet"
+        )
+
+
 @service_router.get("/{service_id}", response_model=ServiceWithLocationsResponse)
 def get_single_service(service_id: int):
     try:
         response = (
-            supabase.from_("services").select("*, service_outlet(outlet_id)").execute()
+            supabase.from_("services")
+            .select("*, service_outlet(outlet_id)")
+            .eq("id", service_id)
+            .limit(1)
+            .execute()
         )
 
         if not response.data:
@@ -65,16 +101,16 @@ def get_single_service(service_id: int):
         raise HTTPException(status_code=500, detail="Failed to get single service")
 
 
-# Update
-@service_router.put("/{service_id}")
-def update_service(service_id: int, service_data: ServiceUpsert):
-    return _upsert_service(service_id, service_data)
-
-
 # Create
 @service_router.put("", status_code=201)
 def create_service(service_data: ServiceUpsert):
     return _upsert_service(None, service_data)
+
+
+# Update
+@service_router.put("/{service_id}")
+def update_service(service_id: int, service_data: ServiceUpsert):
+    return _upsert_service(service_id, service_data)
 
 
 # Helper to handle both
@@ -140,7 +176,7 @@ def _upsert_service(service_id: Optional[int], service_data: ServiceUpsert):
 
 
 @service_router.delete("/{service_id}")
-async def delete_service(service_id: int):
+def delete_service(service_id: int):
     try:
         response = supabase.from_("services").delete().eq("id", service_id).execute()
 

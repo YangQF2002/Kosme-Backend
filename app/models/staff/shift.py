@@ -6,7 +6,7 @@ from app.models._admin import BaseSchema
 
 """
     PUT
-    1) /api/shifts/:staffId/:date
+    1) /api/shifts/:staff_id/:date
 """
 
 
@@ -20,8 +20,8 @@ class ShiftUpsert(BaseSchema):
 
 """
     GET
-    1) /api/shifts/:staffId/:date
-    2) /api/shifts/staffs/:outletId/:date
+    1) /api/shifts/:staff_id/:date
+    2) /api/shifts/staffs/:outlet_id/:date
   
 """
 

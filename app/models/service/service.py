@@ -11,13 +11,7 @@ class PriceType(str, Enum):
     FREE = "Free"
 
 
-""" 
-    PUT 
-    1) /api/services/:id?
-"""
-
-
-class ServiceUpsert(BaseSchema):
+class ServiceBase(BaseSchema):
     name: str = Field(..., max_length=255)
     category_id: int = Field(..., gt=0, alias="categoryId")
     description: Optional[str] = None
@@ -33,6 +27,14 @@ class ServiceUpsert(BaseSchema):
     online_bookings: bool = Field(..., alias="onlineBookings")
     comissions: bool
 
+
+""" 
+    PUT 
+    1) /api/services/:service_id?
+"""
+
+
+class ServiceUpsert(ServiceBase):
     # Locations
     locations: List[Literal[1, 2]] = Field(..., min_length=1)  # outlet_id
 
@@ -40,9 +42,19 @@ class ServiceUpsert(BaseSchema):
 """
     GET 
     1) /api/services
-    2) /api/services/:id
+    2) /api/services/:service_id
 """
 
 
 class ServiceWithLocationsResponse(ServiceUpsert):
+    id: int = Field(..., gt=0)
+
+
+"""
+    GET
+    1) /api/services/outlet/:outlet_id
+"""
+
+
+class ServiceWithoutLocationsResponse(ServiceBase):
     id: int = Field(..., gt=0)

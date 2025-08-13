@@ -7,7 +7,7 @@ from app.models._admin import BaseSchema
 
 """ 
     PUT 
-    1) /api/appointments/:id? (this is required internally)
+    1) /api/appointments/:appointment_id? (this is required internally)
 """
 
 

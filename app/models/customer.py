@@ -48,7 +48,7 @@ class CustomerCreate(BaseSchema):
     GET
     1) /api/customers
     2) /api/customers/search
-    3) /api/customers/:id
+    3) /api/customers/:customer_id
 """
 
 

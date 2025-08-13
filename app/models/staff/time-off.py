@@ -21,7 +21,7 @@ class FrequencyType(str, Enum):
 
 """
     PUT
-    1) /api/time-offs/:id?
+    1) /api/time-offs/:time_off_id?
 """
 
 
@@ -43,8 +43,8 @@ class TimeOffUpsert(BaseSchema):
 
 """
     GET
-    1) /api/time-offs/:id
-    2) /api/time-offs/staffs/:outletId/:date
+    1) /api/time-offs/:time_off_id
+    2) /api/time-offs/staffs/:outlet_id/:date
 """
 
 

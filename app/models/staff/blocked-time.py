@@ -22,7 +22,7 @@ class EndsType(str, Enum):
 
 """
     PUT
-    1) /api/blocked-times/:id?
+    1) /api/blocked-times/:blocked_time_id?
 """
 
 
@@ -47,8 +47,8 @@ class BlockedTimeUpsert(BaseSchema):
 
 """
     GET
-    1) /api/blocked-times/:id
-    2) /api/blocked-times/staffs/:outletId/:date
+    1) /api/blocked-times/:blocked_time_id
+    2) /api/blocked-times/staffs/:outlet_id/:date
 """
 
 

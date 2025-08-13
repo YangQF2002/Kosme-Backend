@@ -1,32 +1,49 @@
-from pydantic import EmailStr, Field
+from typing import List, Literal
+
+from pydantic import Field
 
 from app.models._admin import BaseSchema
 
-"""
-    PUT
-    1) /api/staff/:id?
-"""
 
-
-class StaffUpsert(BaseSchema):
-    first_name: str = Field(..., max_length=100, alias="firstName")
-    last_name: str = Field(..., max_length=100, alias="lastName")
-    email: EmailStr = Field(..., max_length=255)
-    phone: str = Field(..., max_length=20)
-    role: str = Field(..., max_length=100)
+class StaffBase(BaseSchema):
+    first_name: str = Field(..., alias="firstName")
+    last_name: str = Field(..., alias="lastName")
+    email: str
+    phone: str
+    role: str
 
     # Filter fields
-    bookable: bool
     active: bool
+    bookable: bool
+
+
+"""
+    PUT
+    1) /api/staffs/:staff_id?
+"""
+
+
+class StaffUpsert(StaffBase):
+    # Locations
+    locations: List[Literal[1, 2]] = Field(..., min_length=1)  # outlet_id
 
 
 """
     GET
-    1) /api/staff
-    2) /api/staff/:id
-    3) /api/staff/outlet/:outledId
+    1) /api/staffs
+    2) /api/staffs/:staff_id
 """
 
 
-class StaffResponse(StaffUpsert):
+class StaffWithLocationsResponse(StaffUpsert):
+    id: int = Field(..., gt=0)
+
+
+"""
+    GET
+    1) /api/staffs/outlet/:outlet_id
+"""
+
+
+class StaffWithoutLocationsResponse(StaffBase):
     id: int = Field(..., gt=0)

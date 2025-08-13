@@ -3,6 +3,7 @@ from typing import List
 
 from fastapi import APIRouter, HTTPException
 
+from app.models.appointment.appointment import AppointmentResponse
 from app.models.customer import CustomerCreate, CustomerResponse
 from db.supabase import supabase
 
@@ -71,6 +72,43 @@ def get_customer(customer_id: int):
     except Exception as e:
         logger.error(f"Error fetching customer {customer_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to get single customer")
+
+
+@customer_router.get(
+    "/{customer_id}/appointments", response_model=List[AppointmentResponse]
+)
+def get_customer_appointments(customer_id: int):
+    try:
+        target_customer = (
+            supabase.from_("customers")
+            .select("*")
+            .eq("id", customer_id)
+            .limit(1)
+            .execute()
+        )
+
+        if not target_customer.data:
+            raise HTTPException(status_code=404, detail="Customer not found")
+
+        target_customer_appointments = (
+            supabase.from_("appointments")
+            .select("*")
+            .eq("customer_id", customer_id)
+            .execute()
+        )
+
+        return target_customer_appointments.data
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Error fetching customer {customer_id} appointments: {str(e)}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500, detail="Failed to fetch appointments for customer"
+        )
 
 
 @customer_router.post("", status_code=201)
