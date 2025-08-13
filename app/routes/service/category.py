@@ -134,7 +134,7 @@ def _upsert_category(category_id: Optional[int], category_data: ServiceCategoryU
 
         action = "update" if category_id else "create"
         raise HTTPException(
-            status_code=500, detail=f"Failed to ${action} single category"
+            status_code=500, detail=f"Failed to {action} single category"
         )
 
 

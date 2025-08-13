@@ -1,5 +1,6 @@
 from typing import List, Literal, Optional
 
+from fastapi import HTTPException
 from pydantic import BaseModel
 from utils.general import has_overlap
 
@@ -24,8 +25,18 @@ def _get_time_offs_by_staff_and_date(staff_id: int, date: str) -> List[TimeOffRe
 def _get_time_offs_by_outlet_and_date(
     outlet_id: int, date: str
 ) -> List[TimeOffResponse]:
+    # First, get staff IDs for the outlet
+    staff_response = (
+        supabase.from_("staff_outlet")
+        .select("staff_id")
+        .eq("outlet_id", outlet_id)
+        .execute()
+    )
+    staff_ids = [s["staff_id"] for s in staff_response.data]
+
+    # Then, get time offs for those staff
     all_time_offs = (
-        supabase.from_("time_offs").select("*").eq("outlet_id", outlet_id).execute()
+        supabase.from_("time_offs").select("*").in_("staff_id", staff_ids).execute()
     ).data
 
     return _filter_by_frequency(all_time_offs, date)
@@ -85,7 +96,8 @@ def _has_overlapping_time_offs(args: HasOverlappingTimeOffsArgs) -> None:
     )
 
     if has_overlapping:
-        raise ValueError(
-            f"{args.type} {args.target_start_time}-{args.target_end_time} "
-            f"by staff {args.staff.first_name} has clashing time offs."
+        raise HTTPException(
+            status_code=400,
+            detail=f"{args.type} {args.target_start_time}-{args.target_end_time} "
+            f"by staff {args.staff.first_name} has clashing time offs.",
         )

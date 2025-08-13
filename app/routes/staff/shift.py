@@ -57,21 +57,25 @@ def get_shifts_by_outlet_and_date(outlet_id: int, date: str):
         raise HTTPException(status_code=400, detail="Invalid outlet id")
 
     try:
-        response = (
+        # First get staff IDs for the outlet
+        staff_response = (
             supabase.from_("staff_outlet")
-            .select("staff_id, shifts(*)")
+            .select("staff_id")
             .eq("outlet_id", outlet_id)
-            .eq("shifts.shift_date", date)
+            .execute()
+        )
+        staff_ids = [s["staff_id"] for s in staff_response.data]
+
+        # Then get shifts for those staff on the date
+        shifts = (
+            supabase.from_("shifts")
+            .select("*")
+            .in_("staff_id", staff_ids)
+            .eq("shift_date", date)
             .execute()
         )
 
-        # Extract shifts from the joined response
-        shifts = []
-        for item in response.data:
-            if item.get("shifts"):
-                shifts.extend(item["shifts"])
-
-        return shifts
+        return shifts.data
 
     except Exception as e:
         logger.error(
@@ -172,4 +176,4 @@ def _upsert_shift(shift_id: Optional[int], shift_data: ShiftUpsert):
         logger.error(f"Error upserting shift: {str(e)}", exc_info=True)
 
         action = "update" if shift_id else "create"
-        raise HTTPException(status_code=500, detail=f"Failed to ${action} single shift")
+        raise HTTPException(status_code=500, detail=f"Failed to {action} single shift")

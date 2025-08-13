@@ -171,7 +171,7 @@ def _upsert_service(service_id: Optional[int], service_data: ServiceUpsert):
 
         action = "update" if service_id else "create"
         raise HTTPException(
-            status_code=500, detail=f"Failed to ${action} single service"
+            status_code=500, detail=f"Failed to {action} single service"
         )
 
 

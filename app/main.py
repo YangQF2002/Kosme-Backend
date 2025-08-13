@@ -5,15 +5,15 @@ from app.routes.outlet import outlet_router
 from app.routes.service.category import category_router
 from app.routes.service.category_color import category_color_router
 from app.routes.service.service import service_router
+from app.routes.staff.blocked_time import blocked_time_router
 from app.routes.staff.shift import shift_router
 from app.routes.staff.staff import staff_router
 from app.routes.staff.time_off import time_off_router
 
 app = FastAPI()
 
-# Register routers
-app.include_router(customer_router)
-app.include_router(outlet_router)
+
+""" Router registration """
 
 # Routers managing services
 app.include_router(category_color_router)
@@ -24,6 +24,13 @@ app.include_router(service_router)
 app.include_router(staff_router)
 app.include_router(shift_router)
 app.include_router(time_off_router)
+app.include_router(blocked_time_router)
+
+# Routers managing appointments
+
+# Router managing others
+app.include_router(customer_router)
+app.include_router(outlet_router)
 
 
 # Test route

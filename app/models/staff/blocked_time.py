@@ -48,7 +48,7 @@ class BlockedTimeUpsert(BaseSchema):
 """
     GET
     1) /api/blocked-times/:blocked_time_id
-    2) /api/blocked-times/staffs/:outlet_id/:date
+    2) /api/blocked-times/outlet/:outlet_id/:date
 """
 
 

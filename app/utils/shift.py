@@ -1,5 +1,6 @@
 from typing import Literal
 
+from fastapi import HTTPException
 from pydantic import BaseModel
 
 from app.constants import (
@@ -51,7 +52,8 @@ def _is_within_staff_shift(args: IsWithinStaffShiftArgs) -> None:
     )
 
     if not is_within_hours:
-        raise ValueError(
-            f"{args.type} {args.target_start_time}-{args.target_end_time} "
-            f"by staff {args.staff.first_name} is outside shift hours."
+        raise HTTPException(
+            status_code=400,
+            detail=f"{args.type} {args.target_start_time}-{args.target_end_time} "
+            f"by staff {args.staff.first_name} is outside shift hours.",
         )

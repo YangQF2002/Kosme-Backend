@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import List, Literal, Optional
 
+from fastapi import HTTPException
 from pydantic import BaseModel
 from utils.general import has_overlap
 
@@ -67,7 +68,7 @@ class HasOverlappingStaffAppointmentsArgs(BaseModel):
     type: CalendarForms
 
 
-def has_overlapping_staff_appointments(
+def _has_overlapping_staff_appointments(
     args: HasOverlappingStaffAppointmentsArgs,
 ) -> None:
     # Get apointments for the staff on the given date
@@ -92,9 +93,10 @@ def has_overlapping_staff_appointments(
     )
 
     if has_overlapping:
-        raise ValueError(
-            f"{args.type} {args.target_start_time}-{args.target_end_time} "
-            f"by staff {args.staff.first_name} has clashing appointments."
+        raise HTTPException(
+            status_code=400,
+            detail=f"{args.type} {args.target_start_time}-{args.target_end_time} "
+            f"by staff {args.staff.first_name} has clashing appointments.",
         )
 
 
@@ -108,7 +110,7 @@ class HasOverlappingCustomerAppointmentsArgs(BaseModel):
     target_end_time: str  # HH:mm
 
 
-def has_overlapping_customer_appointments(
+def _has_overlapping_customer_appointments(
     args: HasOverlappingCustomerAppointmentsArgs,
 ) -> None:
     # Get all appointments for the customer on the given date
@@ -135,7 +137,8 @@ def has_overlapping_customer_appointments(
     )
 
     if has_overlapping:
-        raise ValueError(
-            f"Appointment {args.target_start_time}-{args.target_end_time} "
-            f"by customer {args.customer.first_name} has clashing appointments."
+        raise HTTPException(
+            status_code=400,
+            detail=f"Appointment {args.target_start_time}-{args.target_end_time} "
+            f"by customer {args.customer.first_name} has clashing appointments.",
         )

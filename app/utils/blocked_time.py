@@ -3,6 +3,7 @@ from datetime import date, datetime, timedelta
 from typing import List, Literal, Optional
 
 from dateutil.relativedelta import relativedelta
+from fastapi import HTTPException
 from pydantic import BaseModel
 from utils.general import has_overlap
 
@@ -19,10 +20,41 @@ from db.supabase import supabase
 def _get_blocked_times_by_staff_and_date(
     staff_id: int, date: str
 ) -> List[BlockedTimeResponse]:
-    all_blocked_times: List[BlockedTimeResponse] = (
+    all_blocked_times = (
         supabase.from_("blocked_times").select("*").eq("staff_id", staff_id).execute()
     ).data
 
+    return _filter_by_frequency_and_ends_type(all_blocked_times, date)
+
+
+def _get_blocked_times_by_outlet_and_date(
+    outlet_id: int, date: str
+) -> List[BlockedTimeResponse]:
+    # First, get staff IDs for the outlet
+    staff_ids_response = (
+        supabase.from_("staff_outlet")
+        .select("staff_id")
+        .eq("outlet_id", outlet_id)
+        .execute()
+    ).data
+
+    staff_ids = [item["staff_id"] for item in staff_ids_response]
+
+    # Then,  get blocked times for those staff
+    all_blocked_times = (
+        supabase.from_("blocked_times")
+        .select("*")
+        .in_("staff_id", staff_ids)
+        .eq("date", date)
+        .execute()
+    ).data
+
+    return _filter_by_frequency_and_ends_type(all_blocked_times, date)
+
+
+def _filter_by_frequency_and_ends_type(
+    all_blocked_times: List[BlockedTimeResponse], date: str
+):
     # Filter based on frequency and ends type
     valid_blocked_times = []
     target_date = datetime.fromisoformat(date).date()
@@ -154,7 +186,8 @@ def _has_overlapping_blocked_times(args: HasOverlappingBlockedTimeArgs) -> None:
     )
 
     if has_overlapping:
-        raise ValueError(
-            f"{args.type} {args.target_start_time}-{args.target_end_time} "
-            f"by staff {args.staff.first_name} has clashing blocked times."
+        raise HTTPException(
+            status_code=400,
+            detail=f"{args.type} {args.target_start_time}-{args.target_end_time} "
+            f"by staff {args.staff.first_name} has clashing blocked times.",
         )

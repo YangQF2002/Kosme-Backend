@@ -172,7 +172,7 @@ def _upsert_staff(staff_id: Optional[int], staff_data: StaffUpsert):
         logger.error(f"Error upserting staff: {str(e)}", exc_info=True)
 
         action = "update" if staff_id else "create"
-        raise HTTPException(status_code=500, detail=f"Failed to ${action} single staff")
+        raise HTTPException(status_code=500, detail=f"Failed to {action} single staff")
 
 
 @staff_router.delete("/{staff_id}")
