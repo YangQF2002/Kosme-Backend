@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+from app.routes.appointment.appointment import appointment_router
 from app.routes.customer import customer_router
 from app.routes.outlet import outlet_router
 from app.routes.service.category import category_router
@@ -26,9 +27,8 @@ app.include_router(shift_router)
 app.include_router(time_off_router)
 app.include_router(blocked_time_router)
 
-# Routers managing appointments
-
 # Router managing others
+app.include_router(appointment_router)
 app.include_router(customer_router)
 app.include_router(outlet_router)
 

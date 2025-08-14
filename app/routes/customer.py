@@ -58,14 +58,14 @@ def get_customer(customer_id: int):
             supabase.from_("customers")
             .select("*")
             .eq("id", customer_id)
-            .limit(1)
+            .single()
             .execute()
         )
 
         if not target_customer.data:
             raise HTTPException(status_code=404, detail="Customer not found")
 
-        return target_customer.data[0]
+        return target_customer.data
 
     except HTTPException:
         raise
@@ -83,7 +83,7 @@ def get_customer_appointments(customer_id: int):
             supabase.from_("customers")
             .select("*")
             .eq("id", customer_id)
-            .limit(1)
+            .single()
             .execute()
         )
 

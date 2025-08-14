@@ -101,7 +101,7 @@ def get_single_staff(staff_id: int):
             supabase.from_("staffs")
             .select("*, staff_outlet(outlet_id)")
             .eq("id", staff_id)
-            .limit(1)
+            .single()
             .execute()
         )
 
@@ -109,7 +109,7 @@ def get_single_staff(staff_id: int):
             raise HTTPException(status_code=404, detail="Staff not found")
 
         # Process the response
-        target_staff = response.data[0]
+        target_staff = response.data
         target_staff["locations"] = [
             item["outlet_id"] for item in target_staff.pop("staff_outlet", [])
         ]

@@ -79,7 +79,7 @@ def get_single_service(service_id: int):
             supabase.from_("services")
             .select("*, service_outlet(outlet_id)")
             .eq("id", service_id)
-            .limit(1)
+            .single()
             .execute()
         )
 
@@ -87,7 +87,7 @@ def get_single_service(service_id: int):
             raise HTTPException(status_code=404, detail="Service not found")
 
         # Process the response
-        target_service = response.data[0]
+        target_service = response.data
         target_service["locations"] = [
             item["outlet_id"] for item in target_service.pop("service_outlet", [])
         ]

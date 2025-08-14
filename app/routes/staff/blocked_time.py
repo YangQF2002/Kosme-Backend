@@ -3,15 +3,15 @@ from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
-from utils.appointment import _has_overlapping_staff_appointments
-from utils.blocked_time import (
+
+from app.models.staff.blocked_time import BlockedTimeResponse, BlockedTimeUpsert
+from app.utils.appointment import _has_overlapping_staff_appointments
+from app.utils.blocked_time import (
     _get_blocked_times_by_outlet_and_date,
     _has_overlapping_blocked_times,
 )
-from utils.shift import _is_within_staff_shift
-from utils.time_off import _has_overlapping_time_offs
-
-from app.models.staff.blocked_time import BlockedTimeResponse, BlockedTimeUpsert
+from app.utils.shift import _is_within_staff_shift
+from app.utils.time_off import _has_overlapping_time_offs
 from db.supabase import supabase
 
 logger = logging.getLogger(__name__)
@@ -50,14 +50,14 @@ def get_single_blocked_time(blocked_time_id: int):
             supabase.from_("blocked_times")
             .select("*")
             .eq("id", blocked_time_id)
-            .limit(1)
+            .single()
             .execute()
         )
 
         if not blocked_time.data:
             raise HTTPException(status_code=404, detail="Blocked time not found")
 
-        return blocked_time.data[0]
+        return blocked_time.data
 
     except HTTPException:
         raise

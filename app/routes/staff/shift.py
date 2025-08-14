@@ -32,14 +32,14 @@ def get_shifts_by_staff_and_date(staff_id: int, date: str):
             .select("*")
             .eq("staff_id", staff_id)
             .eq("shift_date", date)
-            .limit(1)
+            .single()
             .execute()
         )
 
         if not shift.data:
             raise HTTPException(status_code=404, detail="Staff shift not found")
 
-        return shift.data[0]
+        return shift.data
 
     except HTTPException:
         raise

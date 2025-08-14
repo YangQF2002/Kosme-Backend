@@ -3,12 +3,15 @@ from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
-from utils.appointment import _has_overlapping_staff_appointments
-from utils.blocked_time import _has_overlapping_blocked_times
-from utils.shift import _is_within_staff_shift
-from utils.time_off import _get_time_offs_by_outlet_and_date, _has_overlapping_time_offs
 
 from app.models.staff.time_off import TimeOffResponse, TimeOffUpsert
+from app.utils.appointment import _has_overlapping_staff_appointments
+from app.utils.blocked_time import _has_overlapping_blocked_times
+from app.utils.shift import _is_within_staff_shift
+from app.utils.time_off import (
+    _get_time_offs_by_outlet_and_date,
+    _has_overlapping_time_offs,
+)
 from db.supabase import supabase
 
 logger = logging.getLogger(__name__)
@@ -43,14 +46,14 @@ def get_single_time_off(time_off_id: int):
             supabase.from_("time_offs")
             .select("*")
             .eq("id", time_off_id)
-            .limit(1)
+            .single()
             .execute()
         )
 
         if not time_off.data:
             raise HTTPException(status_code=404, detail="Time off not found")
 
-        return time_off.data[0]
+        return time_off.data
 
     except HTTPException:
         raise

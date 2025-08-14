@@ -3,7 +3,7 @@ from typing import List, Literal, Optional
 
 from fastapi import HTTPException
 from pydantic import BaseModel
-from utils.general import has_overlap
+from app.utils.general import has_overlap
 
 from app.models.appointment.appointment import AppointmentResponse
 from app.models.customer import CustomerResponse
@@ -15,43 +15,57 @@ from db.supabase import supabase
     1) Dates are expected to be in YYYY-MM-DD format
 """
 
+"""
+    [Abstraction]
+    1) Query builder with optional filters
+    2) Ensure's that each query is constructed fresh
 
-def _get_appointments_by_staff_and_date(
-    staff_id: int, date: str
+"""
+
+
+def _get_appointments_by_date(
+    date: str,
+    staff_id: Optional[int] = None,
+    customer_id: Optional[int] = None,
+    outlet_id: Optional[int] = None,
 ) -> List[AppointmentResponse]:
     start_of_day = f"{date}T00:00:00"
     end_of_day = f"{date}T23:59:59"
 
-    # Query appointments for this date
-    appointments = (
+    query = (
         supabase.from_("appointments")
         .select("*")
-        .eq("staff_id", staff_id)
         .gte("start_time", start_of_day)
         .lte("start_time", end_of_day)
-        .execute()
-    ).data
+    )
 
-    return appointments
+    # Apply filters based on what's provided
+    if staff_id is not None:
+        query = query.eq("staff_id", staff_id)
+    if customer_id is not None:
+        query = query.eq("customer_id", customer_id)
+    if outlet_id is not None:
+        query = query.eq("outlet_id", outlet_id)
+
+    return query.execute().data
+
+
+def _get_appointments_by_staff_and_date(
+    staff_id: int, date: str
+) -> List[AppointmentResponse]:
+    return _get_appointments_by_date(date, staff_id=staff_id)
 
 
 def _get_appointments_by_customer_and_date(
     customer_id: int, date: str
 ) -> List[AppointmentResponse]:
-    start_of_day = f"{date}T00:00:00"
-    end_of_day = f"{date}T23:59:59"
+    return _get_appointments_by_date(date, customer_id=customer_id)
 
-    # Query appointments for this date
-    appointments = (
-        supabase.from_("appointments")
-        .select("*")
-        .eq("customer_id", customer_id)
-        .gte("start_time", start_of_day)
-        .lte("start_time", end_of_day)
-        .execute()
-    ).data
 
-    return appointments
+def _get_appointments_by_outlet_and_date(
+    outlet_id: int, date: str
+) -> List[AppointmentResponse]:
+    return _get_appointments_by_date(date, outlet_id=outlet_id)
 
 
 CalendarForms = Literal["Appointment", "Blocked time", "Time off", "Shift"]

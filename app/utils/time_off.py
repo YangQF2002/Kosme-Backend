@@ -2,7 +2,7 @@ from typing import List, Literal, Optional
 
 from fastapi import HTTPException
 from pydantic import BaseModel
-from utils.general import has_overlap
+from app.utils.general import has_overlap
 
 from app.models.staff.staff import StaffBase
 from app.models.staff.time_off import TimeOffResponse

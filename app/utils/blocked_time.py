@@ -5,7 +5,7 @@ from typing import List, Literal, Optional
 from dateutil.relativedelta import relativedelta
 from fastapi import HTTPException
 from pydantic import BaseModel
-from utils.general import has_overlap
+from app.utils.general import has_overlap
 
 from app.models.staff.blocked_time import BlockedTimeResponse, EndsType, FrequencyType
 from app.models.staff.staff import StaffBase

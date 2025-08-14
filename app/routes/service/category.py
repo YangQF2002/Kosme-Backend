@@ -55,14 +55,14 @@ def get_single_category(category_id: int):
             supabase.from_("service_categories")
             .select("*")
             .eq("id", category_id)
-            .limit(1)
+            .single()
             .execute()
         )
 
         if not response.data:
             raise HTTPException(status_code=404, detail="Service category not found")
 
-        return response.data[0]
+        return response.data
 
     except HTTPException:
         raise
