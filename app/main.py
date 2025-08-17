@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.routes.appointment.appointment import appointment_router
 from app.routes.customer import customer_router
@@ -37,3 +38,15 @@ app.include_router(outlet_router)
 @app.get("/")
 def welcome_screen():
     return "Hello World!"
+
+
+# Relaxed CORS policy
+# For browser clients to communicate with this server
+origins = ["*"]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)

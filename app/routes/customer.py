@@ -1,11 +1,12 @@
 import logging
 from typing import List
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from supabase import AClient
 
 from app.models.appointment.appointment import AppointmentResponse
 from app.models.customer import CustomerCreate, CustomerResponse
-from db.supabase import supabase
+from db.supabase import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +17,7 @@ customer_router = APIRouter(
 
 
 @customer_router.get("", response_model=List[CustomerResponse])
-def get_all_customers():
+def get_all_customers(supabase: AClient = Depends(get_supabase_client)):
     try:
         customers = supabase.from_("customers").select("*").execute()
         return customers.data
@@ -27,7 +28,9 @@ def get_all_customers():
 
 # Search over first name and last name
 @customer_router.get("/search", response_model=List[CustomerResponse])
-def search_customers(search_query: str | None = None):
+def search_customers(
+    search_query: str | None = None, supabase: AClient = Depends(get_supabase_client)
+):
     try:
         # No query or all whitespace query
         if not search_query or not search_query.strip():
@@ -52,7 +55,7 @@ def search_customers(search_query: str | None = None):
 
 
 @customer_router.get("/{customer_id}", response_model=CustomerResponse)
-def get_customer(customer_id: int):
+def get_customer(customer_id: int, supabase: AClient = Depends(get_supabase_client)):
     try:
         target_customer = (
             supabase.from_("customers")
@@ -77,7 +80,9 @@ def get_customer(customer_id: int):
 @customer_router.get(
     "/{customer_id}/appointments", response_model=List[AppointmentResponse]
 )
-def get_customer_appointments(customer_id: int):
+def get_customer_appointments(
+    customer_id: int, supabase: AClient = Depends(get_supabase_client)
+):
     try:
         target_customer = (
             supabase.from_("customers")
@@ -112,7 +117,9 @@ def get_customer_appointments(customer_id: int):
 
 
 @customer_router.post("", status_code=201)
-def create_customer(customer_data: CustomerCreate):
+def create_customer(
+    customer_data: CustomerCreate, supabase: AClient = Depends(get_supabase_client)
+):
     try:
         create_details = customer_data.model_dump(mode="json")
         supabase.from_("customers").insert(create_details).execute()

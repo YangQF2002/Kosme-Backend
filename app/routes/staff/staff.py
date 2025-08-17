@@ -1,14 +1,15 @@
 import logging
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from supabase import AClient
 
 from app.models.staff.staff import (
     StaffUpsert,
     StaffWithLocationsResponse,
     StaffWithoutLocationsResponse,
 )
-from db.supabase import supabase
+from db.supabase import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ staff_router = APIRouter(
 
 
 @staff_router.get("", response_model=List[StaffWithLocationsResponse])
-def get_all_staffs():
+def get_all_staffs(supabase: AClient = Depends(get_supabase_client)):
     try:
         # LEFT JOIN with staff_outlet FK table
         # GROUP BY staff_id, then grab all the outlet_ids
@@ -47,7 +48,9 @@ def get_all_staffs():
 @staff_router.get(
     "/outlet/{outlet_id}", response_model=List[StaffWithoutLocationsResponse]
 )
-def get_all_staffs_from_outlet(outlet_id: int):
+def get_all_staffs_from_outlet(
+    outlet_id: int, supabase: AClient = Depends(get_supabase_client)
+):
     if outlet_id not in [1, 2]:
         raise HTTPException(status_code=400, detail="Invalid outlet id")
 
@@ -71,7 +74,7 @@ def get_all_staffs_from_outlet(outlet_id: int):
 
 
 @staff_router.get("/stats")
-def get_staff_stats():
+def get_staff_stats(supabase: AClient = Depends(get_supabase_client)):
     try:
         response = supabase.from_("staffs").select("active").execute()
         staff_statuses = response.data
@@ -95,7 +98,7 @@ def get_staff_stats():
 
 
 @staff_router.get("/{staff_id}", response_model=StaffWithLocationsResponse)
-def get_single_staff(staff_id: int):
+def get_single_staff(staff_id: int, supabase: AClient = Depends(get_supabase_client)):
     try:
         response = (
             supabase.from_("staffs")
@@ -125,18 +128,24 @@ def get_single_staff(staff_id: int):
 
 # Create
 @staff_router.put("", status_code=201)
-def create_staff(staff_data: StaffUpsert):
-    return _upsert_staff(None, staff_data)
+def create_staff(
+    staff_data: StaffUpsert, supabase: AClient = Depends(get_supabase_client)
+):
+    return _upsert_staff(None, staff_data, supabase)
 
 
 # Update
 @staff_router.put("/{staff_id}")
-def update_staff(staff_id: int, staff_data: StaffUpsert):
-    return _upsert_staff(staff_id, staff_data)
+def update_staff(
+    staff_id: int,
+    staff_data: StaffUpsert,
+    supabase: AClient = Depends(get_supabase_client),
+):
+    return _upsert_staff(staff_id, staff_data, supabase)
 
 
 # Helper to handle both
-def _upsert_staff(staff_id: Optional[int], staff_data: StaffUpsert):
+def _upsert_staff(staff_id: Optional[int], staff_data: StaffUpsert, supabase: AClient):
     # Construct payload
     payload = staff_data.model_dump(exclude_unset=True, by_alias=False)
 
@@ -176,7 +185,7 @@ def _upsert_staff(staff_id: Optional[int], staff_data: StaffUpsert):
 
 
 @staff_router.delete("/{staff_id}")
-def delete_staff(staff_id: int):
+def delete_staff(staff_id: int, supabase: AClient = Depends(get_supabase_client)):
     try:
         response = supabase.from_("staffs").delete().eq("id", staff_id).execute()
 

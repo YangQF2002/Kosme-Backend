@@ -12,6 +12,7 @@ from app.models._admin import BaseSchema
 
 
 class CategoryColorResponse(BaseSchema):
+    id: int = Field(..., gt=0)
     name: str = Field(..., max_length=100)
     hex: str
 

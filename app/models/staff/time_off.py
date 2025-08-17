@@ -39,7 +39,7 @@ class TimeOffUpsert(BaseSchema):
 
     description: Optional[str] = Field(None, max_length=255)
     approved: bool = False
-
+ 
 
 """
     GET

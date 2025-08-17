@@ -1,10 +1,11 @@
 import logging
 from typing import List
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from supabase import AClient
 
 from app.models.service.category_color import CategoryColorResponse
-from db.supabase import supabase
+from db.supabase import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
@@ -15,10 +16,10 @@ category_color_router = APIRouter(
 
 
 @category_color_router.get("", response_model=List[CategoryColorResponse])
-def get_all_category_colors():
+async def get_all_category_colors(supabase: AClient = Depends(get_supabase_client)):
     try:
         category_colors = (
-            supabase.from_("service_categories_colors").select("*").execute()
+            await supabase.from_("service_categories_colors").select("*").execute()
         )
         return category_colors.data
     except Exception as e:

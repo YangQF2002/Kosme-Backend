@@ -2,17 +2,25 @@ import logging
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from supabase import AClient
 
 from app.models.staff.time_off import TimeOffResponse, TimeOffUpsert
-from app.utils.appointment import _has_overlapping_staff_appointments
-from app.utils.blocked_time import _has_overlapping_blocked_times
-from app.utils.shift import _is_within_staff_shift
+from app.utils.appointment import (
+    HasOverlappingStaffAppointmentsArgs,
+    _has_overlapping_staff_appointments,
+)
+from app.utils.blocked_time import (
+    HasOverlappingBlockedTimeArgs,
+    _has_overlapping_blocked_times,
+)
+from app.utils.shift import IsWithinStaffShiftArgs, _is_within_staff_shift
 from app.utils.time_off import (
+    HasOverlappingTimeOffsArgs,
     _get_time_offs_by_outlet_and_date,
     _has_overlapping_time_offs,
 )
-from db.supabase import supabase
+from db.supabase import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
@@ -23,12 +31,14 @@ time_off_router = APIRouter(
 
 
 @time_off_router.get("/outlet/{outlet_id}/{date}", response_model=List[TimeOffResponse])
-def get_time_offs_for_outlet_and_date(outlet_id: int, date: str):
+def get_time_offs_for_outlet_and_date(
+    outlet_id: int, date: str, supabase: AClient = Depends(get_supabase_client)
+):
     if outlet_id not in [1, 2]:
         raise HTTPException(status_code=400, detail="Invalid outlet id")
 
     try:
-        result = _get_time_offs_by_outlet_and_date(outlet_id, date)
+        result = _get_time_offs_by_outlet_and_date(outlet_id, date, supabase)
         return result
 
     except Exception as e:
@@ -40,7 +50,9 @@ def get_time_offs_for_outlet_and_date(outlet_id: int, date: str):
 
 
 @time_off_router.get("/{time_off_id}", response_model=TimeOffResponse)
-def get_single_time_off(time_off_id: int):
+def get_single_time_off(
+    time_off_id: int, supabase: AClient = Depends(get_supabase_client)
+):
     try:
         time_off = (
             supabase.from_("time_offs")
@@ -64,18 +76,26 @@ def get_single_time_off(time_off_id: int):
 
 # Create
 @time_off_router.put("", status_code=201)
-def create_time_off(time_off_data: TimeOffUpsert):
-    return _upsert_time_off(None, time_off_data)
+def create_time_off(
+    time_off_data: TimeOffUpsert, supabase: AClient = Depends(get_supabase_client)
+):
+    return _upsert_time_off(None, time_off_data, supabase)
 
 
 # Update
 @time_off_router.put("/{time_off_id}")
-def update_time_off(time_off_id: int, time_off_data: TimeOffUpsert):
-    return _upsert_time_off(time_off_id, time_off_data)
+def update_time_off(
+    time_off_id: int,
+    time_off_data: TimeOffUpsert,
+    supabase: AClient = Depends(get_supabase_client),
+):
+    return _upsert_time_off(time_off_id, time_off_data, supabase)
 
 
 # Helper to handle both
-def _upsert_time_off(time_off_id: Optional[int], time_off_data: TimeOffUpsert):
+def _upsert_time_off(
+    time_off_id: Optional[int], time_off_data: TimeOffUpsert, supabase: AClient
+):
     # Construct payload
     payload = time_off_data.model_dump(exclude_unset=True, by_alias=False)
 
@@ -111,46 +131,54 @@ def _upsert_time_off(time_off_id: Optional[int], time_off_data: TimeOffUpsert):
 
     try:
         # [CROSS CHECK 1]: Time off falls within staff shift hours
-        _is_within_staff_shift(
-            staff_id,
-            staff,
-            date_string,
-            time_off_start_time,
-            time_off_end_time,
-            is_weekday,
-            "Time off",
+        args = IsWithinStaffShiftArgs(
+            staff_id=staff_id,
+            staff=staff,
+            date_string=date_string,
+            target_start_time=time_off_start_time,
+            target_end_time=time_off_end_time,
+            is_weekday=is_weekday,
+            type="Time off",
         )
+
+        _is_within_staff_shift(args, supabase)
 
         # [CROSS CHECK 2]: Time off does not clash with staff appointments
-        _has_overlapping_staff_appointments(
-            staff_id,
-            staff,
-            date_string,
-            time_off_start_time,
-            time_off_end_time,
-            "Time off",
+        args = HasOverlappingStaffAppointmentsArgs(
+            staff_id=staff_id,
+            staff=staff,
+            date_string=date_string,
+            target_start_time=time_off_start_time,
+            target_end_time=time_off_end_time,
+            type="Time off",
         )
+
+        _has_overlapping_staff_appointments(args, supabase)
 
         # [CROSS CHECK 3]: Time off does not clash with blocked times
-        _has_overlapping_blocked_times(
-            staff_id,
-            staff,
-            date_string,
-            time_off_start_time,
-            time_off_end_time,
-            "Time off",
+        args = HasOverlappingBlockedTimeArgs(
+            staff_id=staff_id,
+            staff=staff,
+            date_string=date_string,
+            target_start_time=time_off_start_time,
+            target_end_time=time_off_end_time,
+            type="Time off",
         )
 
+        _has_overlapping_blocked_times(args, supabase)
+
         # [CROSS CHECK 4]: Time off does not clash with other time offs
-        _has_overlapping_time_offs(
-            staff_id,
-            staff,
-            date_string,
-            time_off_start_time,
-            time_off_end_time,
-            "Time off",
+        args = HasOverlappingTimeOffsArgs(
+            staff_id=staff_id,
+            staff=staff,
+            date_string=date_string,
+            target_start_time=time_off_start_time,
+            target_end_time=time_off_end_time,
+            type="Time off",
             time_off_id=time_off_id,  # Exclude itself
         )
+
+        _has_overlapping_time_offs(args, supabase)
 
         # After passing the cross checks
         # Then only do we perform the upsert
@@ -179,7 +207,7 @@ def _upsert_time_off(time_off_id: Optional[int], time_off_data: TimeOffUpsert):
 
 
 @time_off_router.delete("/{time_off_id}")
-def delete_time_off(time_off_id: int):
+def delete_time_off(time_off_id: int, supabase: AClient = Depends(get_supabase_client)):
     try:
         response = supabase.from_("time_offs").delete().eq("id", time_off_id).execute()
 

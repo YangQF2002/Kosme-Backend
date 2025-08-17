@@ -1,14 +1,15 @@
 import logging
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from supabase import AClient
 
 from app.models.service.service import (
     ServiceUpsert,
     ServiceWithLocationsResponse,
     ServiceWithoutLocationsResponse,
 )
-from db.supabase import supabase
+from db.supabase import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
@@ -19,13 +20,15 @@ service_router = APIRouter(
 
 
 @service_router.get("", response_model=List[ServiceWithLocationsResponse])
-def get_all_services():
+async def get_all_services(supabase: AClient = Depends(get_supabase_client)):
     try:
         # LEFT JOIN with service_outlet FK table
         # GROUP BY service_id, then grab all the outlet_ids
         # Each row is annotated with "service_outlet": [{"outlet_id": x}, ...]
         response = (
-            supabase.from_("services").select("*, service_outlet(outlet_id)").execute()
+            await supabase.from_("services")
+            .select("*, service_outlet(outlet_id)")
+            .execute()
         )
 
         # Process the response
@@ -47,7 +50,9 @@ def get_all_services():
 @service_router.get(
     "/outlet/{outlet_id}", response_model=List[ServiceWithoutLocationsResponse]
 )
-def get_all_services_from_outlet(outlet_id: int):
+def get_all_services_from_outlet(
+    outlet_id: int, supabase: AClient = Depends(get_supabase_client)
+):
     if outlet_id not in [1, 2]:
         raise HTTPException(status_code=400, detail="Invalid outlet id")
 
@@ -73,7 +78,9 @@ def get_all_services_from_outlet(outlet_id: int):
 
 
 @service_router.get("/{service_id}", response_model=ServiceWithLocationsResponse)
-def get_single_service(service_id: int):
+def get_single_service(
+    service_id: int, supabase: AClient = Depends(get_supabase_client)
+):
     try:
         response = (
             supabase.from_("services")
@@ -103,18 +110,26 @@ def get_single_service(service_id: int):
 
 # Create
 @service_router.put("", status_code=201)
-def create_service(service_data: ServiceUpsert):
-    return _upsert_service(None, service_data)
+def create_service(
+    service_data: ServiceUpsert, supabase: AClient = Depends(get_supabase_client)
+):
+    return _upsert_service(None, service_data, supabase)
 
 
 # Update
 @service_router.put("/{service_id}")
-def update_service(service_id: int, service_data: ServiceUpsert):
-    return _upsert_service(service_id, service_data)
+def update_service(
+    service_id: int,
+    service_data: ServiceUpsert,
+    supabase: AClient = Depends(get_supabase_client),
+):
+    return _upsert_service(service_id, service_data, supabase)
 
 
 # Helper to handle both
-def _upsert_service(service_id: Optional[int], service_data: ServiceUpsert):
+def _upsert_service(
+    service_id: Optional[int], service_data: ServiceUpsert, supabase: AClient
+):
     # Construct payload
     payload = service_data.model_dump(exclude_unset=True, by_alias=False)
 
@@ -176,7 +191,7 @@ def _upsert_service(service_id: Optional[int], service_data: ServiceUpsert):
 
 
 @service_router.delete("/{service_id}")
-def delete_service(service_id: int):
+def delete_service(service_id: int, supabase: AClient = Depends(get_supabase_client)):
     try:
         response = supabase.from_("services").delete().eq("id", service_id).execute()
 

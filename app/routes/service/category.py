@@ -1,14 +1,15 @@
 import logging
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from supabase import AClient
 
 from app.models.service.category import (
     ServiceCategoryResponse,
     ServiceCategoryUpsert,
     ServiceCategoryWithCountResponse,
 )
-from db.supabase import supabase
+from db.supabase import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
@@ -19,13 +20,15 @@ category_router = APIRouter(
 
 
 @category_router.get("", response_model=List[ServiceCategoryWithCountResponse])
-def get_all_categories():
+async def get_all_categories(supabase: AClient = Depends(get_supabase_client)):
     try:
         # LEFT JOIN with services FK table
         # GROUP BY service_category_id, then COUNT over each group
         # Each row is annotated with "services": [{"count": x}]
         response = (
-            supabase.from_("service_categories").select("*, services(count)").execute()
+            await supabase.from_("service_categories")
+            .select("*, services(count)")
+            .execute()
         )
 
         # Process the response
@@ -49,7 +52,9 @@ def get_all_categories():
 
 
 @category_router.get("/{category_id}", response_model=ServiceCategoryResponse)
-def get_single_category(category_id: int):
+def get_single_category(
+    category_id: int, supabase: AClient = Depends(get_supabase_client)
+):
     try:
         response = (
             supabase.from_("service_categories")
@@ -83,18 +88,27 @@ def get_single_category(category_id: int):
 
 # Create
 @category_router.put("", status_code=201)
-def create_service_category(category_data: ServiceCategoryUpsert):
-    return _upsert_category(None, category_data)
+def create_service_category(
+    category_data: ServiceCategoryUpsert,
+    supabase: AClient = Depends(get_supabase_client),
+):
+    return _upsert_category(None, category_data, supabase)
 
 
 # Update
 @category_router.put("/{category_id}")
-def update_service_category(category_id: int, category_data: ServiceCategoryUpsert):
-    return _upsert_category(category_id, category_data)
+def update_service_category(
+    category_id: int,
+    category_data: ServiceCategoryUpsert,
+    supabase: AClient = Depends(get_supabase_client),
+):
+    return _upsert_category(category_id, category_data, supabase)
 
 
 # Helper to handle both
-def _upsert_category(category_id: Optional[int], category_data: ServiceCategoryUpsert):
+def _upsert_category(
+    category_id: Optional[int], category_data: ServiceCategoryUpsert, supabase: AClient
+):
     # Construct payload
     payload = category_data.model_dump(exclude_unset=True, by_alias=False)
 
@@ -139,7 +153,7 @@ def _upsert_category(category_id: Optional[int], category_data: ServiceCategoryU
 
 
 @category_router.delete("/{category_id}")
-def delete_category(category_id: int):
+def delete_category(category_id: int, supabase: AClient = Depends(get_supabase_client)):
     try:
         response = (
             supabase.from_("service_categories")

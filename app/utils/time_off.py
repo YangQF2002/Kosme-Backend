@@ -2,11 +2,11 @@ from typing import List, Literal, Optional
 
 from fastapi import HTTPException
 from pydantic import BaseModel
-from app.utils.general import has_overlap
+from supabase import AClient
 
 from app.models.staff.staff import StaffBase
 from app.models.staff.time_off import TimeOffResponse
-from db.supabase import supabase
+from app.utils.general import has_overlap
 
 """ 
     [Date format]
@@ -14,7 +14,9 @@ from db.supabase import supabase
 """
 
 
-def _get_time_offs_by_staff_and_date(staff_id: int, date: str) -> List[TimeOffResponse]:
+def _get_time_offs_by_staff_and_date(
+    staff_id: int, date: str, supabase: AClient
+) -> List[TimeOffResponse]:
     all_time_offs = (
         supabase.from_("time_offs").select("*").eq("staff_id", staff_id).execute()
     ).data
@@ -23,7 +25,7 @@ def _get_time_offs_by_staff_and_date(staff_id: int, date: str) -> List[TimeOffRe
 
 
 def _get_time_offs_by_outlet_and_date(
-    outlet_id: int, date: str
+    outlet_id: int, date: str, supabase: AClient
 ) -> List[TimeOffResponse]:
     # First, get staff IDs for the outlet
     staff_response = (
@@ -73,7 +75,7 @@ class HasOverlappingTimeOffsArgs(BaseModel):
     type: CalendarForms
 
 
-def _has_overlapping_time_offs(args: HasOverlappingTimeOffsArgs) -> None:
+def _has_overlapping_time_offs(args: HasOverlappingTimeOffsArgs, supabase: AClient) -> None:
     # Get time offs for the staff on the given date
     time_offs = _get_time_offs_by_staff_and_date(args.staff_id, args.date_string)
 

@@ -1,7 +1,8 @@
 import logging
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from supabase import AClient
 
 from app.models.appointment.appointment import (
     AppointmentResponse,
@@ -14,16 +15,19 @@ from app.models.service.service import (
     ServiceWithoutLocationsResponse,
 )
 from app.utils.appointment import (
+    HasOverlappingCustomerAppointmentsArgs,
+    HasOverlappingStaffAppointmentsArgs,
     _get_appointments_by_outlet_and_date,
     _has_overlapping_customer_appointments,
     _has_overlapping_staff_appointments,
 )
 from app.utils.blocked_time import (
+    HasOverlappingBlockedTimeArgs,
     _has_overlapping_blocked_times,
 )
-from app.utils.shift import _is_within_staff_shift
-from app.utils.time_off import _has_overlapping_time_offs
-from db.supabase import supabase
+from app.utils.shift import IsWithinStaffShiftArgs, _is_within_staff_shift
+from app.utils.time_off import HasOverlappingTimeOffsArgs, _has_overlapping_time_offs
+from db.supabase import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +37,18 @@ appointment_router = APIRouter(
 )
 
 
+"""
+    [FastAPI + Supbase Integration]
+
+    1) I'll just write this once (@current maintainer)
+    2) FastAPI, an async framework, requires supabase client as a dependency injection
+    3) This prevents weird timeouts and disconnects
+
+"""
+
+
 @appointment_router.get("", response_model=List[AppointmentResponse])
-def get_all_appointments():
+def get_all_appointments(supabase: AClient = Depends(get_supabase_client)):
     try:
         appointments = supabase.from_("appointments").select("*").execute()
         return appointments.data
@@ -47,13 +61,15 @@ def get_all_appointments():
 @appointment_router.get(
     "/outlet/{outlet_id}/{date}", response_model=List[AppointmentResponse]
 )
-def get_appointments_by_outlet_and_date(outlet_id: int, date: str):
+def get_appointments_by_outlet_and_date(
+    outlet_id: int, date: str, supabase: AClient = Depends(get_supabase_client)
+):
     if outlet_id not in [1, 2]:
         raise HTTPException(status_code=400, detail="Invalid outlet id")
 
     try:
-        appointments = _get_appointments_by_outlet_and_date(outlet_id, date)
-        return appointments.data
+        appointments = _get_appointments_by_outlet_and_date(outlet_id, date, supabase)
+        return appointments
 
     except Exception as e:
         logger.error(f"Error fetching outlet appointments: {str(e)}", exc_info=True)
@@ -63,7 +79,9 @@ def get_appointments_by_outlet_and_date(outlet_id: int, date: str):
 
 
 @appointment_router.get("/{appointment_id}", response_model=AppointmentResponse)
-def get_single_appointment(appointment_id: int):
+def get_single_appointment(
+    appointment_id: int, supabase: AClient = Depends(get_supabase_client)
+):
     try:
         appointment = (
             supabase.from_("appointments")
@@ -89,7 +107,11 @@ def get_single_appointment(appointment_id: int):
 
 # Update status
 @appointment_router.put("/status/{appointment_id}")
-def update_appointment_status(appointment_id: int, status: AppointmentStatus):
+def update_appointment_status(
+    appointment_id: int,
+    status: AppointmentStatus,
+    supabase: AClient = Depends(get_supabase_client),
+):
     try:
         response = (
             supabase.from_("appointments")
@@ -117,19 +139,28 @@ def update_appointment_status(appointment_id: int, status: AppointmentStatus):
 
 # Create
 @appointment_router.put("", status_code=201)
-def create_appointment(appointment_data: AppointmentUpsert):
-    return _upsert_appointment(None, appointment_data)
+def create_appointment(
+    appointment_data: AppointmentUpsert,
+    supabase: AClient = Depends(get_supabase_client),
+):
+    return _upsert_appointment(None, appointment_data, supabase)
 
 
 # Update
 @appointment_router.put("/{appointment_id}")
-def update_appointment(appointment_id: int, appointment_data: AppointmentUpsert):
-    return _upsert_appointment(appointment_id, appointment_data)
+def update_appointment(
+    appointment_id: int,
+    appointment_data: AppointmentUpsert,
+    supabase: AClient = Depends(get_supabase_client),
+):
+    return _upsert_appointment(appointment_id, appointment_data, supabase)
 
 
 # Helper to handle both
 def _upsert_appointment(
-    appointment_id: Optional[int], appointment_data: AppointmentUpsert
+    appointment_id: Optional[int],
+    appointment_data: AppointmentUpsert,
+    supabase: AClient,
 ):
     # Construct payload
     payload = appointment_data.model_dump(exclude_unset=True, by_alias=False)
@@ -174,59 +205,75 @@ def _upsert_appointment(
 
     try:
         # [CROSS CHECK 1]: Appointment falls within staff shift hours
-        _is_within_staff_shift(
-            staff_id,
-            staff,
-            date_string,
-            appointment_start_time,
-            appointment_end_time,
-            is_weekday,
-            "Appointment",
+        args = IsWithinStaffShiftArgs(
+            staff_id=staff_id,
+            staff=staff,
+            date_string=date_string,
+            target_start_time=appointment_start_time,
+            target_end_time=appointment_end_time,
+            is_weekday=is_weekday,
+            type="Appointment",
         )
+
+        _is_within_staff_shift(args, supabase)
 
         # [CROSS CHECK 2]: Appointment does not clash with time-offs
-        _has_overlapping_staff_appointments(
-            staff_id,
-            staff,
-            date_string,
-            appointment_start_time,
-            appointment_end_time,
-            "Appointment",
+        args = HasOverlappingTimeOffsArgs(
+            staff_id=staff_id,
+            staff=staff,
+            date_string=date_string,
+            target_start_time=appointment_start_time,
+            target_end_time=appointment_end_time,
+            type="Appointment",
         )
+
+        _has_overlapping_time_offs(args, supabase)
 
         # [CROSS CHECK 3]: Appointment does not clash with blocked-times
-        _has_overlapping_blocked_times(
-            staff_id,
-            staff,
-            date_string,
-            appointment_start_time,
-            appointment_end_time,
-            "Appointment",
+        args = HasOverlappingBlockedTimeArgs(
+            staff_id=staff_id,
+            staff=staff,
+            date_string=date_string,
+            target_start_time=appointment_start_time,
+            target_end_time=appointment_end_time,
+            type="Appointment",
         )
 
+        _has_overlapping_blocked_times(args, supabase)
+
         # [CROSS CHECK 4]: Appointment does not clash with other staff appointments
-        _has_overlapping_time_offs(
-            staff_id,
-            staff,
-            date_string,
-            appointment_start_time,
-            appointment_end_time,
-            "Appointment",
+        args = HasOverlappingStaffAppointmentsArgs(
+            staff_id=staff_id,
+            staff=staff,
+            date_string=date_string,
+            target_start_time=appointment_start_time,
+            target_end_time=appointment_end_time,
+            type="Appointment",
             appointment_id=appointment_id,  # Exclude itself
         )
 
+        _has_overlapping_staff_appointments(args, supabase)
+
         # [CROSS CHECK 5]: Appointment does not clash with other customer appointments
-        _has_overlapping_customer_appointments(
-            appointment_id,  # Exclude itself
-            customer_id,
-            customer,
-            date_string,
-            appointment_start_time,
-            appointment_end_time,
+        args = HasOverlappingCustomerAppointmentsArgs(
+            appointment_id=appointment_id,  # Exclude itself
+            customer_id=customer_id,
+            customer=customer,
+            date_string=date_string,
+            target_start_time=appointment_start_time,
+            target_end_time=appointment_end_time,
         )
+
+        _has_overlapping_customer_appointments(args, supabase)
 
         # After passing the cross checks
         # Then only do we perform the upsert
+
+        # Appointment start and end needs to be converted to ISO string
+        # To be JSON-serializable
+        payload["start_time"] = payload["start_time"].now().isoformat()
+        payload["end_time"] = payload["end_time"].now().isoformat()
+
         response = supabase.from_("appointments").upsert(payload).execute()
 
         if appointment_id and not response.data:
@@ -358,7 +405,9 @@ def _upsert_appointment(
 
 
 @appointment_router.delete("/{appointment_id}")
-def delete_appointment(appointment_id: int):
+def delete_appointment(
+    appointment_id: int, supabase: AClient = Depends(get_supabase_client)
+):
     try:
         response = (
             supabase.from_("appointments").delete().eq("id", appointment_id).execute()

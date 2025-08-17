@@ -5,11 +5,11 @@ from typing import List, Literal, Optional
 from dateutil.relativedelta import relativedelta
 from fastapi import HTTPException
 from pydantic import BaseModel
-from app.utils.general import has_overlap
+from supabase import AClient
 
 from app.models.staff.blocked_time import BlockedTimeResponse, EndsType, FrequencyType
 from app.models.staff.staff import StaffBase
-from db.supabase import supabase
+from app.utils.general import has_overlap
 
 """ 
     [Date format]
@@ -18,7 +18,7 @@ from db.supabase import supabase
 
 
 def _get_blocked_times_by_staff_and_date(
-    staff_id: int, date: str
+    staff_id: int, date: str, supabase: AClient
 ) -> List[BlockedTimeResponse]:
     all_blocked_times = (
         supabase.from_("blocked_times").select("*").eq("staff_id", staff_id).execute()
@@ -28,7 +28,7 @@ def _get_blocked_times_by_staff_and_date(
 
 
 def _get_blocked_times_by_outlet_and_date(
-    outlet_id: int, date: str
+    outlet_id: int, date: str, supabase: AClient
 ) -> List[BlockedTimeResponse]:
     # First, get staff IDs for the outlet
     staff_ids_response = (
@@ -40,12 +40,12 @@ def _get_blocked_times_by_outlet_and_date(
 
     staff_ids = [item["staff_id"] for item in staff_ids_response]
 
-    # Then,  get blocked times for those staff
+    # Then, get blocked times for those staff
     all_blocked_times = (
         supabase.from_("blocked_times")
         .select("*")
         .in_("staff_id", staff_ids)
-        .eq("date", date)
+        .eq("start_date", date)
         .execute()
     ).data
 
@@ -161,10 +161,12 @@ class HasOverlappingBlockedTimeArgs(BaseModel):
     type: CalendarForms
 
 
-def _has_overlapping_blocked_times(args: HasOverlappingBlockedTimeArgs) -> None:
+def _has_overlapping_blocked_times(
+    args: HasOverlappingBlockedTimeArgs, supabase: AClient
+) -> None:
     # Get blocked times for the staff on the given date
     blocked_times = _get_blocked_times_by_staff_and_date(
-        args.staff_id, args.date_string
+        args.staff_id, args.date_string, supabase
     )
 
     # Filter out the current blocked time if blocked_time_id is provided

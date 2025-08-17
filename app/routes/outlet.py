@@ -1,10 +1,11 @@
 import logging
 from typing import List
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from supabase import AClient
 
 from app.models.outlet import OutletResponse
-from db.supabase import supabase
+from db.supabase import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
@@ -15,9 +16,9 @@ outlet_router = APIRouter(
 
 
 @outlet_router.get("", response_model=List[OutletResponse])
-def get_all_outlets():
+async def get_all_outlets(supabase: AClient = Depends(get_supabase_client)):
     try:
-        outlets = supabase.from_("outlets").select("*").execute()
+        outlets = await supabase.from_("outlets").select("*").execute()
         return outlets.data
     except Exception as e:
         # Log the error server-side

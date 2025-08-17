@@ -3,12 +3,12 @@ from typing import List, Literal, Optional
 
 from fastapi import HTTPException
 from pydantic import BaseModel
-from app.utils.general import has_overlap
+from supabase import AClient
 
 from app.models.appointment.appointment import AppointmentResponse
 from app.models.customer import CustomerResponse
 from app.models.staff.staff import StaffBase
-from db.supabase import supabase
+from app.utils.general import has_overlap
 
 """ 
     [Date format]
@@ -24,6 +24,7 @@ from db.supabase import supabase
 
 
 def _get_appointments_by_date(
+    supabase: AClient,
     date: str,
     staff_id: Optional[int] = None,
     customer_id: Optional[int] = None,
@@ -51,21 +52,21 @@ def _get_appointments_by_date(
 
 
 def _get_appointments_by_staff_and_date(
-    staff_id: int, date: str
+    staff_id: int, date: str, supabase: AClient
 ) -> List[AppointmentResponse]:
-    return _get_appointments_by_date(date, staff_id=staff_id)
+    return _get_appointments_by_date(supabase, date, staff_id=staff_id)
 
 
 def _get_appointments_by_customer_and_date(
-    customer_id: int, date: str
+    customer_id: int, date: str, supabase: AClient
 ) -> List[AppointmentResponse]:
-    return _get_appointments_by_date(date, customer_id=customer_id)
+    return _get_appointments_by_date(supabase, date, customer_id=customer_id)
 
 
 def _get_appointments_by_outlet_and_date(
-    outlet_id: int, date: str
+    outlet_id: int, date: str, supabase: AClient
 ) -> List[AppointmentResponse]:
-    return _get_appointments_by_date(date, outlet_id=outlet_id)
+    return _get_appointments_by_date(supabase, date, outlet_id=outlet_id)
 
 
 CalendarForms = Literal["Appointment", "Blocked time", "Time off", "Shift"]
@@ -83,10 +84,12 @@ class HasOverlappingStaffAppointmentsArgs(BaseModel):
 
 
 def _has_overlapping_staff_appointments(
-    args: HasOverlappingStaffAppointmentsArgs,
+    args: HasOverlappingStaffAppointmentsArgs, supabase: AClient
 ) -> None:
     # Get apointments for the staff on the given date
-    appointments = _get_appointments_by_staff_and_date(args.staff_id, args.date_string)
+    appointments = _get_appointments_by_staff_and_date(
+        args.staff_id, args.date_string, supabase
+    )
 
     # Filter out the current appointment if appointment_id is provided
     staff_appointments = [
@@ -116,7 +119,7 @@ def _has_overlapping_staff_appointments(
 
 class HasOverlappingCustomerAppointmentsArgs(BaseModel):
     # This is SOLELY USED by appointment to check against others
-    appointment_id: int
+    appointment_id: Optional[int]
     customer_id: int
     customer: CustomerResponse
     date_string: str  # YYYY-MM-DD
@@ -125,18 +128,19 @@ class HasOverlappingCustomerAppointmentsArgs(BaseModel):
 
 
 def _has_overlapping_customer_appointments(
-    args: HasOverlappingCustomerAppointmentsArgs,
+    args: HasOverlappingCustomerAppointmentsArgs, supabase: AClient
 ) -> None:
     # Get all appointments for the customer on the given date
     appointments = _get_appointments_by_customer_and_date(
-        args.customer_id, args.date_string
+        args.customer_id, args.date_string, supabase
     )
 
     # Filter for customer appointments, excluding current appointment
     customer_appointments = [
         appt
         for appt in appointments
-        if appt["customer_id"] == args.customer_id and appt["id"] != args.appointment_id
+        if appt["customer_id"] == args.customer_id
+        and (not args.appointment_id or appt["id"] != args.appointment_id)
     ]
 
     # Check for overlaps

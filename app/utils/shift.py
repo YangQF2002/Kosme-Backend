@@ -2,6 +2,7 @@ from typing import Literal
 
 from fastapi import HTTPException
 from pydantic import BaseModel
+from supabase import AClient
 
 from app.constants import (
     WEEKDAY_CLOSING,
@@ -10,7 +11,6 @@ from app.constants import (
     WEEKEND_OPENING,
 )
 from app.models.staff.staff import StaffBase
-from db.supabase import supabase
 
 CalendarFormsWithoutShift = Literal["Appointment", "Blocked time", "Time off"]
 
@@ -25,7 +25,7 @@ class IsWithinStaffShiftArgs(BaseModel):
     type: CalendarFormsWithoutShift
 
 
-def _is_within_staff_shift(args: IsWithinStaffShiftArgs) -> None:
+def _is_within_staff_shift(args: IsWithinStaffShiftArgs, supabase: AClient) -> None:
     # Get staff shift for the specific date
     staff_shift_response = (
         supabase.from_("shifts")
@@ -35,7 +35,10 @@ def _is_within_staff_shift(args: IsWithinStaffShiftArgs) -> None:
         .maybe_single()  # At most one row
         .execute()
     )
-    staff_shift = staff_shift_response.data
+
+    staff_shift = (
+        staff_shift_response.data if staff_shift_response is not None else None
+    )
 
     # Determine shift hours (use defaults if no shift found)
     if staff_shift:

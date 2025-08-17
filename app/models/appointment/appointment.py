@@ -1,5 +1,4 @@
 from datetime import datetime
-from decimal import Decimal
 from enum import Enum
 from typing import Optional
 
@@ -49,9 +48,7 @@ class AppointmentUpsert(BaseSchema):
 
     # Payment fields
     credits_paid: int = Field(..., ge=0, alias="creditsPaid")
-    cash_paid: Decimal = Field(
-        ..., ge=0, max_digits=10, decimal_places=2, alias="cashPaid"
-    )
+    cash_paid: int = Field(..., ge=0, alias="cashPaid")
 
     notes: Optional[str] = None
     status: AppointmentStatus

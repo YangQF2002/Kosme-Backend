@@ -71,11 +71,11 @@
 10. Run the local server
 
     ```
-    # http://127.0.0.1:8000/
-    # http://localhost:8000/
-    # http://<public-ip>:8000/
+    # http://127.0.0.1:5000/
+    # http://localhost:5000/
+    # http://<public-ip>:5000/
 
-    uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+    uvicorn app.main:app --reload --host 0.0.0.0 --port 5000
     ```
+
 11. (Optional) Paste the `seed.sql` file into Supabase's SQL editor (to seed the database)
-    

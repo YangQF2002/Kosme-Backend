@@ -2,13 +2,14 @@ import logging
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from supabase import AClient
 
 from app.models.staff.shift import ShiftResponse, ShiftUpsert
 from app.utils.appointment import _get_appointments_by_staff_and_date
 from app.utils.blocked_time import _get_blocked_times_by_staff_and_date
 from app.utils.time_off import _get_time_offs_by_staff_and_date
-from db.supabase import supabase
+from db.supabase import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,9 @@ shift_router = APIRouter(
 
 
 @shift_router.get("/staff/{staff_id}/{date}", response_model=ShiftResponse)
-def get_shifts_by_staff_and_date(staff_id: int, date: str):
+def get_shifts_by_staff_and_date(
+    staff_id: int, date: str, supabase: AClient = Depends(get_supabase_client)
+):
     try:
         shift = (
             supabase.from_("shifts")
@@ -52,7 +55,9 @@ def get_shifts_by_staff_and_date(staff_id: int, date: str):
 
 
 @shift_router.get("/outlet/{outlet_id}/{date}", response_model=List[ShiftResponse])
-def get_shifts_by_outlet_and_date(outlet_id: int, date: str):
+def get_shifts_by_outlet_and_date(
+    outlet_id: int, date: str, supabase: AClient = Depends(get_supabase_client)
+):
     if outlet_id not in [1, 2]:
         raise HTTPException(status_code=400, detail="Invalid outlet id")
 
@@ -87,18 +92,24 @@ def get_shifts_by_outlet_and_date(outlet_id: int, date: str):
 
 # Create
 @shift_router.put("", status_code=201)
-def create_shift(shift_data: ShiftUpsert):
-    return _upsert_shift(None, shift_data)
+def create_shift(
+    shift_data: ShiftUpsert, supabase: AClient = Depends(get_supabase_client)
+):
+    return _upsert_shift(None, shift_data, supabase)
 
 
 # Update
 @shift_router.put("/{shift_id}")
-def update_shift(shift_id: int, shift_data: ShiftUpsert):
-    return _upsert_shift(shift_id, shift_data)
+def update_shift(
+    shift_id: int,
+    shift_data: ShiftUpsert,
+    supabase: AClient = Depends(get_supabase_client),
+):
+    return _upsert_shift(shift_id, shift_data, supabase)
 
 
 # Helper to handle both
-def _upsert_shift(shift_id: Optional[int], shift_data: ShiftUpsert):
+def _upsert_shift(shift_id: Optional[int], shift_data: ShiftUpsert, supabase: AClient):
     # Construct payload
     payload = shift_data.model_dump(exclude_unset=True, by_alias=False)
 
@@ -114,7 +125,9 @@ def _upsert_shift(shift_id: Optional[int], shift_data: ShiftUpsert):
 
     try:
         # [CROSS CHECK 1]: Shift does not cause any staff appointments to fall out of range
-        staff_appointments = _get_appointments_by_staff_and_date(shift_date)
+        staff_appointments = _get_appointments_by_staff_and_date(
+            shift_staff_id, shift_date, supabase
+        )
 
         is_all_within_range = all(
             datetime.fromisoformat(appt["start_time"]).strftime("%H:%M")
@@ -130,7 +143,9 @@ def _upsert_shift(shift_id: Optional[int], shift_data: ShiftUpsert):
             )
 
         # [CROSS CHECK 2]: Shift does not cause any staff time offs to fall out of range
-        staff_time_offs = _get_time_offs_by_staff_and_date(shift_staff_id, shift_date)
+        staff_time_offs = _get_time_offs_by_staff_and_date(
+            shift_staff_id, shift_date, supabase
+        )
 
         is_all_within_range = all(
             time_off["start_time"] >= shift_start_time
@@ -145,7 +160,7 @@ def _upsert_shift(shift_id: Optional[int], shift_data: ShiftUpsert):
 
         # [CROSS CHECK 3]: Shift does not cause any staff blocked time to fall out of range
         staff_blocked_times = _get_blocked_times_by_staff_and_date(
-            shift_staff_id, shift_date
+            shift_staff_id, shift_date, supabase
         )
 
         is_all_within_range = all(

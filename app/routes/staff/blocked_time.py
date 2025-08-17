@@ -2,17 +2,22 @@ import logging
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from supabase import AClient
 
 from app.models.staff.blocked_time import BlockedTimeResponse, BlockedTimeUpsert
-from app.utils.appointment import _has_overlapping_staff_appointments
+from app.utils.appointment import (
+    HasOverlappingStaffAppointmentsArgs,
+    _has_overlapping_staff_appointments,
+)
 from app.utils.blocked_time import (
+    HasOverlappingBlockedTimeArgs,
     _get_blocked_times_by_outlet_and_date,
     _has_overlapping_blocked_times,
 )
-from app.utils.shift import _is_within_staff_shift
-from app.utils.time_off import _has_overlapping_time_offs
-from db.supabase import supabase
+from app.utils.shift import IsWithinStaffShiftArgs, _is_within_staff_shift
+from app.utils.time_off import HasOverlappingTimeOffsArgs, _has_overlapping_time_offs
+from db.supabase import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
@@ -25,12 +30,14 @@ blocked_time_router = APIRouter(
 @blocked_time_router.get(
     "/outlet/{outlet_id}/{date}", response_model=List[BlockedTimeResponse]
 )
-def get_blocked_times_for_outlet_and_date(outlet_id: int, date: str):
+def get_blocked_times_for_outlet_and_date(
+    outlet_id: int, date: str, supabase: AClient = Depends(get_supabase_client)
+):
     if outlet_id not in [1, 2]:
         raise HTTPException(status_code=400, detail="Invalid outlet id")
 
     try:
-        result = _get_blocked_times_by_outlet_and_date(outlet_id, date)
+        result = _get_blocked_times_by_outlet_and_date(outlet_id, date, supabase)
         return result
 
     except Exception as e:
@@ -44,7 +51,9 @@ def get_blocked_times_for_outlet_and_date(outlet_id: int, date: str):
 
 
 @blocked_time_router.get("/{blocked_time_id}", response_model=BlockedTimeResponse)
-def get_single_blocked_time(blocked_time_id: int):
+def get_single_blocked_time(
+    blocked_time_id: int, supabase: AClient = Depends(get_supabase_client)
+):
     try:
         blocked_time = (
             supabase.from_("blocked_times")
@@ -70,19 +79,28 @@ def get_single_blocked_time(blocked_time_id: int):
 
 # Create
 @blocked_time_router.put("", status_code=201)
-def create_blocked_time(blocked_time_data: BlockedTimeUpsert):
-    return _upsert_blocked_time(None, blocked_time_data)
+def create_blocked_time(
+    blocked_time_data: BlockedTimeUpsert,
+    supabase: AClient = Depends(get_supabase_client),
+):
+    return _upsert_blocked_time(None, blocked_time_data, supabase)
 
 
 # Update
 @blocked_time_router.put("/{blocked_time_id}")
-def update_blocked_time(blocked_time_id: int, blocked_time_data: BlockedTimeUpsert):
-    return _upsert_blocked_time(blocked_time_id, blocked_time_data)
+def update_blocked_time(
+    blocked_time_id: int,
+    blocked_time_data: BlockedTimeUpsert,
+    supabase: AClient = Depends(get_supabase_client),
+):
+    return _upsert_blocked_time(blocked_time_id, blocked_time_data, supabase)
 
 
 # Helper to handle both
 def _upsert_blocked_time(
-    blocked_time_id: Optional[int], blocked_time_data: BlockedTimeUpsert
+    blocked_time_id: Optional[int],
+    blocked_time_data: BlockedTimeUpsert,
+    supabase: AClient,
 ):
     # Construct payload
     payload = blocked_time_data.model_dump(exclude_unset=True, by_alias=False)
@@ -119,46 +137,54 @@ def _upsert_blocked_time(
 
     try:
         # [CROSS CHECK 1]: Blocked time falls within staff shift hours
-        _is_within_staff_shift(
-            staff_id,
-            staff,
-            date_string,
-            blocked_time_start_time,
-            blocked_time_end_time,
-            is_weekday,
-            "Blocked time",
+        args = IsWithinStaffShiftArgs(
+            staff_id=staff_id,
+            staff=staff,
+            date_string=date_string,
+            target_start_time=blocked_time_start_time,
+            target_end_time=blocked_time_end_time,
+            is_weekday=is_weekday,
+            type="Blocked time",
         )
+
+        _is_within_staff_shift(args, supabase)
 
         # [CROSS CHECK 2]: Blocked time does not clash with staff appointments
-        _has_overlapping_staff_appointments(
-            staff_id,
-            staff,
-            date_string,
-            blocked_time_start_time,
-            blocked_time_end_time,
-            "Blocked time",
+        args = HasOverlappingStaffAppointmentsArgs(
+            staff_id=staff_id,
+            staff=staff,
+            date_string=date_string,
+            target_start_time=blocked_time_start_time,
+            target_end_time=blocked_time_end_time,
+            type="Blocked time",
         )
 
+        _has_overlapping_staff_appointments(args, supabase)
+
         # [CROSS CHECK 3]: Blocked time does not clash with other blocked times
-        _has_overlapping_blocked_times(
-            staff_id,
-            staff,
-            date_string,
-            blocked_time_start_time,
-            blocked_time_end_time,
-            "Blocked time",
+        args = HasOverlappingBlockedTimeArgs(
+            staff_id=staff_id,
+            staff=staff,
+            date_string=date_string,
+            target_start_time=blocked_time_start_time,
+            target_end_time=blocked_time_end_time,
+            type="Blocked time",
             blocked_time_id=blocked_time_id,  # Exclude itself
         )
 
+        _has_overlapping_blocked_times(args, supabase)
+
         # [CROSS CHECK 4]: Blocked time does not clash with time offs
-        _has_overlapping_time_offs(
-            staff_id,
-            staff,
-            date_string,
-            blocked_time_start_time,
-            blocked_time_end_time,
-            "Blocked time",
+        args = HasOverlappingTimeOffsArgs(
+            staff_id=staff_id,
+            staff=staff,
+            date_string=date_string,
+            target_start_time=blocked_time_start_time,
+            target_end_time=blocked_time_end_time,
+            type="Blocked time",
         )
+
+        _has_overlapping_time_offs(args, supabase)
 
         # After passing the cross checks
         # Then only do we perform the upsert
@@ -187,7 +213,9 @@ def _upsert_blocked_time(
 
 
 @blocked_time_router.delete("/{blocked_time_id}")
-def delete_blocked_time(blocked_time_id: int):
+def delete_blocked_time(
+    blocked_time_id: int, supabase: AClient = Depends(get_supabase_client)
+):
     try:
         response = (
             supabase.from_("blocked_times").delete().eq("id", blocked_time_id).execute()
