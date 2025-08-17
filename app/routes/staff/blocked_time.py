@@ -188,7 +188,15 @@ async def _upsert_blocked_time(
 
         # After passing the cross checks
         # Then only do we perform the upsert
-        response = supabase.from_("blocked_times").upsert(payload).execute()
+        payload["start_date"] = payload["start_date"].isoformat()
+
+        if payload.get("ends_on_date"):
+            payload["ends_on_date"] = payload["ends_on_date"].isoformat()
+
+        if blocked_time_id:
+            payload["updated_at"] = datetime.now().isoformat()
+
+        response = await supabase.from_("blocked_times").upsert(payload).execute()
 
         if blocked_time_id and not response.data:
             raise HTTPException(

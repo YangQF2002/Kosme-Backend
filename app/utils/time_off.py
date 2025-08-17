@@ -38,7 +38,10 @@ async def _get_time_offs_by_outlet_and_date(
 
     # Then, get time offs for those staff
     all_time_offs = (
-        await supabase.from_("time_offs").select("*").in_("staff_id", staff_ids).execute()
+        await supabase.from_("time_offs")
+        .select("*")
+        .in_("staff_id", staff_ids)
+        .execute()
     ).data
 
     return _filter_by_frequency(all_time_offs, date)
@@ -75,9 +78,13 @@ class HasOverlappingTimeOffsArgs(BaseModel):
     type: CalendarForms
 
 
-async def _has_overlapping_time_offs(args: HasOverlappingTimeOffsArgs, supabase: AClient) -> None:
+async def _has_overlapping_time_offs(
+    args: HasOverlappingTimeOffsArgs, supabase: AClient
+) -> None:
     # Get time offs for the staff on the given date
-    time_offs = await _get_time_offs_by_staff_and_date(args.staff_id, args.date_string)
+    time_offs = await _get_time_offs_by_staff_and_date(
+        args.staff_id, args.date_string, supabase
+    )
 
     # Filter out the current time off if time_off_id is provided
     staff_time_offs = [

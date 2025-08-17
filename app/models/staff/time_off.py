@@ -2,7 +2,7 @@ from datetime import date, datetime, time
 from enum import Enum
 from typing import Optional
 
-from pydantic import Field
+from pydantic import Field, field_serializer
 
 from app.models._admin import BaseSchema
 
@@ -39,7 +39,11 @@ class TimeOffUpsert(BaseSchema):
 
     description: Optional[str] = Field(None, max_length=255)
     approved: bool = False
- 
+
+    @field_serializer("start_time", "end_time")
+    def serialize_time(self, v: time) -> str:
+        return v.strftime("%H:%M")
+
 
 """
     GET
@@ -51,4 +55,4 @@ class TimeOffUpsert(BaseSchema):
 class TimeOffResponse(TimeOffUpsert):
     id: int = Field(..., gt=0)
     created_at: datetime
-    updated_at: datetime
+    updated_at: datetime | None

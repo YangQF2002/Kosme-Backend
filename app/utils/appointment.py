@@ -33,7 +33,7 @@ async def _get_appointments_by_date(
     start_of_day = f"{date}T00:00:00"
     end_of_day = f"{date}T23:59:59"
 
-    query = await (
+    query = (
         supabase.from_("appointments")
         .select("*")
         .gte("start_time", start_of_day)
@@ -48,7 +48,9 @@ async def _get_appointments_by_date(
     if outlet_id is not None:
         query = query.eq("outlet_id", outlet_id)
 
-    return query.execute().data
+    # Only await the execute() call
+    result = await query.execute()
+    return result.data
 
 
 async def _get_appointments_by_staff_and_date(

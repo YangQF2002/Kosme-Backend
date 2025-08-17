@@ -21,7 +21,10 @@ async def _get_blocked_times_by_staff_and_date(
     staff_id: int, date: str, supabase: AClient
 ) -> List[BlockedTimeResponse]:
     all_blocked_times = (
-        await supabase.from_("blocked_times").select("*").eq("staff_id", staff_id).execute()
+        await supabase.from_("blocked_times")
+        .select("*")
+        .eq("staff_id", staff_id)
+        .execute()
     ).data
 
     return _filter_by_frequency_and_ends_type(all_blocked_times, date)
@@ -45,7 +48,6 @@ async def _get_blocked_times_by_outlet_and_date(
         await supabase.from_("blocked_times")
         .select("*")
         .in_("staff_id", staff_ids)
-        .eq("start_date", date)
         .execute()
     ).data
 
@@ -61,13 +63,14 @@ def _filter_by_frequency_and_ends_type(
 
     for bt in all_blocked_times:
         # Non-repeating blocked time
-        if bt["frequency"] == "none":
+        if bt["frequency"] == "None":
             if bt["start_date"] == date:
                 valid_blocked_times.append(bt)
             continue
 
         # Repeating blocked time
         start_date = datetime.fromisoformat(bt["start_date"]).date()
+
         if target_date < start_date:
             continue
 

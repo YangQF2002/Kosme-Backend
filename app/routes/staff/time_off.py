@@ -99,8 +99,8 @@ async def _upsert_time_off(
     # Construct payload
     payload = time_off_data.model_dump(exclude_unset=True, by_alias=False)
 
-    if time_off_data is not None:
-        payload["id"] = time_off_data
+    if time_off_id is not None:
+        payload["id"] = time_off_id
 
     # Extract important info
     staff_id = time_off_data.staff_id
@@ -182,6 +182,14 @@ async def _upsert_time_off(
 
         # After passing the cross checks
         # Then only do we perform the upsert
+        payload["start_date"] = payload["start_date"].isoformat()
+
+        if payload.get("ends_date"):
+            payload["ends_date"] = payload["ends_date"].isoformat()
+
+        if time_off_id:
+            payload["updated_at"] = datetime.now().isoformat()
+
         response = await supabase.from_("time_offs").upsert(payload).execute()
 
         if time_off_id and not response.data:
@@ -207,9 +215,13 @@ async def _upsert_time_off(
 
 
 @time_off_router.delete("/{time_off_id}")
-async def delete_time_off(time_off_id: int, supabase: AClient = Depends(get_supabase_client)):
+async def delete_time_off(
+    time_off_id: int, supabase: AClient = Depends(get_supabase_client)
+):
     try:
-        response = await supabase.from_("time_offs").delete().eq("id", time_off_id).execute()
+        response = (
+            await supabase.from_("time_offs").delete().eq("id", time_off_id).execute()
+        )
 
         if not response.data:
             raise HTTPException(status_code=404, detail="Time off not found")

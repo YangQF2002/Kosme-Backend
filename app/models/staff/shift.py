@@ -1,6 +1,6 @@
 from datetime import date, time
 
-from pydantic import Field
+from pydantic import Field, field_serializer
 
 from app.models._admin import BaseSchema
 
@@ -17,6 +17,10 @@ class ShiftUpsert(BaseSchema):
     end_time: time = Field(..., alias="endTime")
 
     shift_date: date = Field(..., alias="shiftDate")
+
+    @field_serializer("start_time", "end_time")
+    def serialize_time(self, v: time) -> str:
+        return v.strftime("%H:%M")
 
 
 """

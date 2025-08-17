@@ -2,7 +2,7 @@ from datetime import date, datetime, time
 from enum import Enum
 from typing import Optional
 
-from pydantic import Field
+from pydantic import Field, field_serializer
 
 from app.models._admin import BaseSchema
 
@@ -31,8 +31,8 @@ class BlockedTimeUpsert(BaseSchema):
 
     title: str = Field(..., max_length=255)
     start_date: date = Field(..., alias="startDate")
-    from_time: time = Field(..., alias="from")  # 'from' is a Python keyword
-    to_time: time = Field(..., alias="to")  # 'to_time' for consistency
+    from_time: time = Field(..., alias="fromTime")
+    to_time: time = Field(..., alias="toTime")
 
     frequency: FrequencyType
     ends: Optional[EndsType] = None
@@ -43,6 +43,10 @@ class BlockedTimeUpsert(BaseSchema):
 
     description: Optional[str] = Field(None, max_length=255)
     approved: bool = False
+
+    @field_serializer("from_time", "to_time")
+    def serialize_time(self, v: time) -> str:
+        return v.strftime("%H:%M")
 
 
 """
@@ -55,4 +59,4 @@ class BlockedTimeUpsert(BaseSchema):
 class BlockedTimeResponse(BlockedTimeUpsert):
     id: int = Field(..., gt=0)
     created_at: datetime
-    updated_at: datetime
+    updated_at: datetime | None

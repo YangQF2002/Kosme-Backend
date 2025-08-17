@@ -9,7 +9,6 @@ from app.models.appointment.appointment import (
     AppointmentStatus,
     AppointmentUpsert,
 )
-from app.models.appointment.credit_transaction import CreditTransactionCreate
 from app.models.customer import CustomerResponse
 from app.models.service.service import (
     ServiceWithoutLocationsResponse,
@@ -111,7 +110,7 @@ async def get_single_appointment(
 @appointment_router.put("/status/{appointment_id}")
 async def update_appointment_status(
     appointment_id: int,
-    status: AppointmentStatus,
+    status: AppointmentStatus,  # Query param
     supabase: AClient = Depends(get_supabase_client),
 ):
     try:
@@ -277,10 +276,22 @@ async def _upsert_appointment(
 
         # Appointment start and end needs to be converted to ISO string
         # To be JSON-serializable
-        payload["start_time"] = payload["start_time"].now().isoformat()
-        payload["end_time"] = payload["end_time"].now().isoformat()
+        payload["start_time"] = payload["start_time"].isoformat()
+        payload["end_time"] = payload["end_time"].isoformat()
 
-        response = await supabase.from_("appointments").upsert(payload).execute()
+        if not appointment_id:
+            # Create new appointment
+            payload["credits_paid"] = 0
+            response = await supabase.from_("appointments").insert(payload).execute()
+        else:
+            # Update existing appointment - don't include credits_paid
+            payload.pop("credits_paid", None)
+            response = (
+                await supabase.from_("appointments")
+                .update(payload)
+                .eq("id", appointment_id)
+                .execute()
+            )
 
         if appointment_id and not response.data:
             raise HTTPException(
@@ -293,11 +304,11 @@ async def _upsert_appointment(
         # Handle credit payment
         payment_method = appointment_data.payment_method
 
-        if payment_method == "credits":
+        if payment_method == "Credits":
             # First, establish some basic info
             service_id = appointment_data.service_id
             service: ServiceWithoutLocationsResponse = (
-                await supabase.from_("service")
+                await supabase.from_("services")
                 .select("*")
                 .eq("id", service_id)
                 .single()
@@ -307,14 +318,14 @@ async def _upsert_appointment(
             if not service:
                 raise HTTPException(status_code=404, detail="Service not found")
 
-            current_cost = service.credit_cost
-            previous_credits_paid = appointment_data.credits_paid or 0
+            current_cost = service["credit_cost"]
+            previous_credits_paid = response.data[0]["credits_paid"]
             credit_diff = current_cost - previous_credits_paid
 
             # Need to charge more
             if credit_diff > 0:
                 # Insufficient funds
-                if customer.credit_balance < credit_diff:
+                if customer["credit_balance"] < credit_diff:
                     raise HTTPException(
                         status_code=400,
                         detail="Insufficient credits for updated appointment"
@@ -323,17 +334,18 @@ async def _upsert_appointment(
                     )
 
                 # Deduct credits
-                new_balance = customer.credit_balance - credit_diff
+                new_balance = customer["credit_balance"] - credit_diff
+
                 await (
                     supabase.from_("customers")
                     .update({"credit_balance": new_balance})
-                    .eq("id", customer.id)
+                    .eq("id", customer["id"])
                     .execute()
                 )
 
                 # Record deduction
                 transaction_info = {
-                    "customer_id": customer.id,
+                    "customer_id": customer["id"],
                     "appointment_id": target_appointment_id,
                     "amount": -credit_diff,  # Negative for credits used
                     "type": "usage",
@@ -351,19 +363,19 @@ async def _upsert_appointment(
             # ONLY possible on UPDATE
             elif credit_diff < 0:
                 refund_amount = abs(credit_diff)
-                new_balance = customer.credit_balance + refund_amount
+                new_balance = customer["credit_balance"] + refund_amount
 
                 # Perform refund
                 await (
                     supabase.from_("customers")
                     .update({"credit_balance": new_balance})
-                    .eq("id", customer.id)
+                    .eq("id", customer["id"])
                     .execute()
                 )
 
                 # Record refund
                 transaction_info = {
-                    "customer_id": customer.id,
+                    "customer_id": customer["id"],
                     "appointment_id": appointment_id,
                     "amount": refund_amount,  # Positive for credits added
                     "type": "refund",
@@ -375,7 +387,7 @@ async def _upsert_appointment(
                     .execute()
                 )
 
-            # Safety, may not necessarily need
+            # Update relevant fields
             await (
                 supabase.from_("appointments")
                 .update({"credits_paid": current_cost, "payment_status": "Paid"})
@@ -386,21 +398,21 @@ async def _upsert_appointment(
         else:
             # Handle refund if switching from credits to cash/card
             # ONLY possible on UPDATE
-            if appointment_id and appointment_data.credits_paid > 0:
-                previous_credits_paid = appointment_data.credits_paid
-                new_balance = customer.credit_balance + previous_credits_paid
+            if appointment_id:
+                previous_credits_paid = response.data[0]["credits_paid"]
+                new_balance = customer["credit_balance"] + previous_credits_paid
 
                 # Perform refund
                 await (
                     supabase.from_("customers")
                     .update({"credit_balance": new_balance})
-                    .eq("id", customer.id)
+                    .eq("id", customer["id"])
                     .execute()
                 )
 
                 # Record refund
                 transaction_info = {
-                    "customer_id": customer.id,
+                    "customer_id": customer["id"],
                     "appointment_id": appointment_id,
                     "amount": previous_credits_paid,
                     "type": "refund",
@@ -412,7 +424,7 @@ async def _upsert_appointment(
                     .execute()
                 )
 
-            # Safety, may not necessarily need
+            # Update relevant fields
             await (
                 supabase.from_("appointments")
                 .update({"credits_paid": 0, "payment_status": "Pending"})
@@ -455,10 +467,11 @@ async def delete_appointment(
         # If customer paid by credits
         # Refund the credits
         deleted_appointment: AppointmentResponse = response.data[0]
-        payment_method = deleted_appointment.payment_method
-        credits_paid = deleted_appointment.credits_paid
 
-        customer_id = deleted_appointment.customer_id
+        payment_method = deleted_appointment["payment_method"]
+        credits_paid = deleted_appointment["credits_paid"]
+
+        customer_id = deleted_appointment["customer_id"]
         customer: CustomerResponse = (
             await supabase.from_("customers")
             .select("*")
@@ -469,25 +482,13 @@ async def delete_appointment(
 
         if payment_method == "Credits" and credits_paid > 0:
             # Perform the refund
-            new_credit_balance = customer.credit_balance + credits_paid
+            new_credit_balance = customer["credit_balance"] + credits_paid
 
             await (
                 supabase.from_("customers")
                 .update({"credit_balance": new_credit_balance})
                 .eq("id", customer_id)
                 .execute()
-            )
-
-            # Record refund down via a credit transaction
-            transaction_info: CreditTransactionCreate = {
-                "customer_id": customer_id,
-                "appointment_id": appointment_id,
-                "amount": credits_paid,
-                "type": "refund",
-                "description": f"Refunded {credits_paid} credits for cancelled appointment",
-            }
-            await (
-                supabase.from_("credit_transactions").insert(transaction_info).execute()
             )
 
         return "Appointment successfully deleted"

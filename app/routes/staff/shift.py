@@ -35,11 +35,11 @@ async def get_shifts_by_staff_and_date(
             .select("*")
             .eq("staff_id", staff_id)
             .eq("shift_date", date)
-            .single()
+            .maybe_single()  # One or none
             .execute()
         )
 
-        if not shift.data:
+        if not shift:
             raise HTTPException(status_code=404, detail="Staff shift not found")
 
         return shift.data
@@ -109,7 +109,9 @@ async def update_shift(
 
 
 # Helper to handle both
-async def _upsert_shift(shift_id: Optional[int], shift_data: ShiftUpsert, supabase: AClient):
+async def _upsert_shift(
+    shift_id: Optional[int], shift_data: ShiftUpsert, supabase: AClient
+):
     # Construct payload
     payload = shift_data.model_dump(exclude_unset=True, by_alias=False)
 
@@ -117,7 +119,7 @@ async def _upsert_shift(shift_id: Optional[int], shift_data: ShiftUpsert, supaba
         payload["id"] = shift_id
 
     # Extract important info
-    shift_date = shift_data.shift_date
+    shift_date = shift_data.shift_date.isoformat()
     shift_staff_id = shift_data.staff_id
 
     shift_start_time = shift_data.start_time
@@ -130,10 +132,8 @@ async def _upsert_shift(shift_id: Optional[int], shift_data: ShiftUpsert, supaba
         )
 
         is_all_within_range = all(
-            datetime.fromisoformat(appt["start_time"]).strftime("%H:%M")
-            >= shift_start_time
-            and datetime.fromisoformat(appt["end_time"]).strftime("%H:%M")
-            <= shift_end_time
+            datetime.fromisoformat(appt["start_time"]).time() >= shift_start_time
+            and datetime.fromisoformat(appt["end_time"]).time() <= shift_end_time
             for appt in staff_appointments
         )
 
@@ -176,6 +176,7 @@ async def _upsert_shift(shift_id: Optional[int], shift_data: ShiftUpsert, supaba
 
         # After passing the cross checks
         # Then only do we perform the upsert
+        payload["shift_date"] = payload["shift_date"].isoformat()
         response = await supabase.from_("shifts").upsert(payload).execute()
 
         if shift_id and not response.data:
