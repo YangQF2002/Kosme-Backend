@@ -20,13 +20,13 @@ staff_router = APIRouter(
 
 
 @staff_router.get("", response_model=List[StaffWithLocationsResponse])
-def get_all_staffs(supabase: AClient = Depends(get_supabase_client)):
+async def get_all_staffs(supabase: AClient = Depends(get_supabase_client)):
     try:
         # LEFT JOIN with staff_outlet FK table
         # GROUP BY staff_id, then grab all the outlet_ids
         # Each row is annotated with "staff_outlet": [{"outlet_id": x}, ...]
         response = (
-            supabase.from_("staffs").select("*, staff_outlet(outlet_id)").execute()
+            await supabase.from_("staffs").select("*, staff_outlet(outlet_id)").execute()
         )
 
         # Process the response
@@ -48,7 +48,7 @@ def get_all_staffs(supabase: AClient = Depends(get_supabase_client)):
 @staff_router.get(
     "/outlet/{outlet_id}", response_model=List[StaffWithoutLocationsResponse]
 )
-def get_all_staffs_from_outlet(
+async def get_all_staffs_from_outlet(
     outlet_id: int, supabase: AClient = Depends(get_supabase_client)
 ):
     if outlet_id not in [1, 2]:
@@ -56,7 +56,7 @@ def get_all_staffs_from_outlet(
 
     try:
         response = (
-            supabase.from_("staff_outlet")
+            await supabase.from_("staff_outlet")
             .select("staff_id, staffs(*)")
             .eq("outlet_id", outlet_id)
             .execute()
@@ -74,9 +74,9 @@ def get_all_staffs_from_outlet(
 
 
 @staff_router.get("/stats")
-def get_staff_stats(supabase: AClient = Depends(get_supabase_client)):
+async def get_staff_stats(supabase: AClient = Depends(get_supabase_client)):
     try:
-        response = supabase.from_("staffs").select("active").execute()
+        response = await supabase.from_("staffs").select("active").execute()
         staff_statuses = response.data
 
         # Extract the active and inactive counts
@@ -98,10 +98,10 @@ def get_staff_stats(supabase: AClient = Depends(get_supabase_client)):
 
 
 @staff_router.get("/{staff_id}", response_model=StaffWithLocationsResponse)
-def get_single_staff(staff_id: int, supabase: AClient = Depends(get_supabase_client)):
+async def get_single_staff(staff_id: int, supabase: AClient = Depends(get_supabase_client)):
     try:
         response = (
-            supabase.from_("staffs")
+            await supabase.from_("staffs")
             .select("*, staff_outlet(outlet_id)")
             .eq("id", staff_id)
             .single()
@@ -128,24 +128,24 @@ def get_single_staff(staff_id: int, supabase: AClient = Depends(get_supabase_cli
 
 # Create
 @staff_router.put("", status_code=201)
-def create_staff(
+async def create_staff(
     staff_data: StaffUpsert, supabase: AClient = Depends(get_supabase_client)
 ):
-    return _upsert_staff(None, staff_data, supabase)
+    return await _upsert_staff(None, staff_data, supabase)
 
 
 # Update
 @staff_router.put("/{staff_id}")
-def update_staff(
+async def update_staff(
     staff_id: int,
     staff_data: StaffUpsert,
     supabase: AClient = Depends(get_supabase_client),
 ):
-    return _upsert_staff(staff_id, staff_data, supabase)
+    return await _upsert_staff(staff_id, staff_data, supabase)
 
 
 # Helper to handle both
-def _upsert_staff(staff_id: Optional[int], staff_data: StaffUpsert, supabase: AClient):
+async def _upsert_staff(staff_id: Optional[int], staff_data: StaffUpsert, supabase: AClient):
     # Construct payload
     payload = staff_data.model_dump(exclude_unset=True, by_alias=False)
 
@@ -155,21 +155,21 @@ def _upsert_staff(staff_id: Optional[int], staff_data: StaffUpsert, supabase: AC
     locations: List[int] = payload.pop("locations")
 
     try:
-        response = supabase.from_("staffs").upsert(payload).execute()
+        response = await supabase.from_("staffs").upsert(payload).execute()
 
         if staff_id and not response.data:
             raise HTTPException(status_code=404, detail="Staff to be updated not found")
 
         # Clear existing links (if any)
         if staff_id is not None:
-            supabase.from_("staff_outlet").delete().eq("staff_id", staff_id).execute()
+            await supabase.from_("staff_outlet").delete().eq("staff_id", staff_id).execute()
 
         # Update the staff-outlet link table
         target_staff = response.data[0]
         target_id: int = target_staff["id"]
 
         for outlet_id in locations:
-            supabase.from_("staff_outlet").insert(
+            await supabase.from_("staff_outlet").insert(
                 {"staff_id": target_id, "outlet_id": outlet_id}
             ).execute()
 
@@ -185,9 +185,9 @@ def _upsert_staff(staff_id: Optional[int], staff_data: StaffUpsert, supabase: AC
 
 
 @staff_router.delete("/{staff_id}")
-def delete_staff(staff_id: int, supabase: AClient = Depends(get_supabase_client)):
+async def delete_staff(staff_id: int, supabase: AClient = Depends(get_supabase_client)):
     try:
-        response = supabase.from_("staffs").delete().eq("id", staff_id).execute()
+        response = await supabase.from_("staffs").delete().eq("id", staff_id).execute()
 
         if not response.data:
             raise HTTPException(status_code=404, detail="Staff not found")

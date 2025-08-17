@@ -52,12 +52,12 @@ async def get_all_categories(supabase: AClient = Depends(get_supabase_client)):
 
 
 @category_router.get("/{category_id}", response_model=ServiceCategoryResponse)
-def get_single_category(
+async def get_single_category(
     category_id: int, supabase: AClient = Depends(get_supabase_client)
 ):
     try:
         response = (
-            supabase.from_("service_categories")
+            await supabase.from_("service_categories")
             .select("*")
             .eq("id", category_id)
             .single()
@@ -88,25 +88,25 @@ def get_single_category(
 
 # Create
 @category_router.put("", status_code=201)
-def create_service_category(
+async def create_service_category(
     category_data: ServiceCategoryUpsert,
     supabase: AClient = Depends(get_supabase_client),
 ):
-    return _upsert_category(None, category_data, supabase)
+    return await _upsert_category(None, category_data, supabase)
 
 
 # Update
 @category_router.put("/{category_id}")
-def update_service_category(
+async def update_service_category(
     category_id: int,
     category_data: ServiceCategoryUpsert,
     supabase: AClient = Depends(get_supabase_client),
 ):
-    return _upsert_category(category_id, category_data, supabase)
+    return await _upsert_category(category_id, category_data, supabase)
 
 
 # Helper to handle both
-def _upsert_category(
+async def _upsert_category(
     category_id: Optional[int], category_data: ServiceCategoryUpsert, supabase: AClient
 ):
     # Construct payload
@@ -116,7 +116,7 @@ def _upsert_category(
         payload["id"] = category_id
 
     try:
-        response = supabase.from_("service_categories").upsert(payload).execute()
+        response = await supabase.from_("service_categories").upsert(payload).execute()
 
         if category_id and not response.data:
             raise HTTPException(
@@ -153,10 +153,10 @@ def _upsert_category(
 
 
 @category_router.delete("/{category_id}")
-def delete_category(category_id: int, supabase: AClient = Depends(get_supabase_client)):
+async def delete_category(category_id: int, supabase: AClient = Depends(get_supabase_client)):
     try:
         response = (
-            supabase.from_("service_categories")
+            await supabase.from_("service_categories")
             .delete()
             .eq("id", category_id)
             .execute()

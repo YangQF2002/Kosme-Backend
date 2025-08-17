@@ -30,14 +30,14 @@ blocked_time_router = APIRouter(
 @blocked_time_router.get(
     "/outlet/{outlet_id}/{date}", response_model=List[BlockedTimeResponse]
 )
-def get_blocked_times_for_outlet_and_date(
+async def get_blocked_times_for_outlet_and_date(
     outlet_id: int, date: str, supabase: AClient = Depends(get_supabase_client)
 ):
     if outlet_id not in [1, 2]:
         raise HTTPException(status_code=400, detail="Invalid outlet id")
 
     try:
-        result = _get_blocked_times_by_outlet_and_date(outlet_id, date, supabase)
+        result = await _get_blocked_times_by_outlet_and_date(outlet_id, date, supabase)
         return result
 
     except Exception as e:
@@ -51,12 +51,12 @@ def get_blocked_times_for_outlet_and_date(
 
 
 @blocked_time_router.get("/{blocked_time_id}", response_model=BlockedTimeResponse)
-def get_single_blocked_time(
+async def get_single_blocked_time(
     blocked_time_id: int, supabase: AClient = Depends(get_supabase_client)
 ):
     try:
         blocked_time = (
-            supabase.from_("blocked_times")
+            await supabase.from_("blocked_times")
             .select("*")
             .eq("id", blocked_time_id)
             .single()
@@ -79,25 +79,25 @@ def get_single_blocked_time(
 
 # Create
 @blocked_time_router.put("", status_code=201)
-def create_blocked_time(
+async def create_blocked_time(
     blocked_time_data: BlockedTimeUpsert,
     supabase: AClient = Depends(get_supabase_client),
 ):
-    return _upsert_blocked_time(None, blocked_time_data, supabase)
+    return await _upsert_blocked_time(None, blocked_time_data, supabase)
 
 
 # Update
 @blocked_time_router.put("/{blocked_time_id}")
-def update_blocked_time(
+async def update_blocked_time(
     blocked_time_id: int,
     blocked_time_data: BlockedTimeUpsert,
     supabase: AClient = Depends(get_supabase_client),
 ):
-    return _upsert_blocked_time(blocked_time_id, blocked_time_data, supabase)
+    return await _upsert_blocked_time(blocked_time_id, blocked_time_data, supabase)
 
 
 # Helper to handle both
-def _upsert_blocked_time(
+async def _upsert_blocked_time(
     blocked_time_id: Optional[int],
     blocked_time_data: BlockedTimeUpsert,
     supabase: AClient,
@@ -112,7 +112,7 @@ def _upsert_blocked_time(
     staff_id = blocked_time_data.staff_id
 
     staff_response = (
-        supabase.from_("staffs").select("*").eq("id", staff_id).single().execute()
+        await supabase.from_("staffs").select("*").eq("id", staff_id).single().execute()
     )
 
     staff = staff_response.data
@@ -147,7 +147,7 @@ def _upsert_blocked_time(
             type="Blocked time",
         )
 
-        _is_within_staff_shift(args, supabase)
+        await _is_within_staff_shift(args, supabase)
 
         # [CROSS CHECK 2]: Blocked time does not clash with staff appointments
         args = HasOverlappingStaffAppointmentsArgs(
@@ -159,7 +159,7 @@ def _upsert_blocked_time(
             type="Blocked time",
         )
 
-        _has_overlapping_staff_appointments(args, supabase)
+        await _has_overlapping_staff_appointments(args, supabase)
 
         # [CROSS CHECK 3]: Blocked time does not clash with other blocked times
         args = HasOverlappingBlockedTimeArgs(
@@ -172,7 +172,7 @@ def _upsert_blocked_time(
             blocked_time_id=blocked_time_id,  # Exclude itself
         )
 
-        _has_overlapping_blocked_times(args, supabase)
+        await _has_overlapping_blocked_times(args, supabase)
 
         # [CROSS CHECK 4]: Blocked time does not clash with time offs
         args = HasOverlappingTimeOffsArgs(
@@ -184,7 +184,7 @@ def _upsert_blocked_time(
             type="Blocked time",
         )
 
-        _has_overlapping_time_offs(args, supabase)
+        await _has_overlapping_time_offs(args, supabase)
 
         # After passing the cross checks
         # Then only do we perform the upsert
@@ -213,12 +213,15 @@ def _upsert_blocked_time(
 
 
 @blocked_time_router.delete("/{blocked_time_id}")
-def delete_blocked_time(
+async def delete_blocked_time(
     blocked_time_id: int, supabase: AClient = Depends(get_supabase_client)
 ):
     try:
         response = (
-            supabase.from_("blocked_times").delete().eq("id", blocked_time_id).execute()
+            await supabase.from_("blocked_times")
+            .delete()
+            .eq("id", blocked_time_id)
+            .execute()
         )
 
         if not response.data:

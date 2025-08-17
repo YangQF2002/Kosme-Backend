@@ -23,7 +23,7 @@ from app.utils.general import has_overlap
 """
 
 
-def _get_appointments_by_date(
+async def _get_appointments_by_date(
     supabase: AClient,
     date: str,
     staff_id: Optional[int] = None,
@@ -33,7 +33,7 @@ def _get_appointments_by_date(
     start_of_day = f"{date}T00:00:00"
     end_of_day = f"{date}T23:59:59"
 
-    query = (
+    query = await (
         supabase.from_("appointments")
         .select("*")
         .gte("start_time", start_of_day)
@@ -51,22 +51,22 @@ def _get_appointments_by_date(
     return query.execute().data
 
 
-def _get_appointments_by_staff_and_date(
+async def _get_appointments_by_staff_and_date(
     staff_id: int, date: str, supabase: AClient
 ) -> List[AppointmentResponse]:
-    return _get_appointments_by_date(supabase, date, staff_id=staff_id)
+    return await _get_appointments_by_date(supabase, date, staff_id=staff_id)
 
 
-def _get_appointments_by_customer_and_date(
+async def _get_appointments_by_customer_and_date(
     customer_id: int, date: str, supabase: AClient
 ) -> List[AppointmentResponse]:
-    return _get_appointments_by_date(supabase, date, customer_id=customer_id)
+    return await _get_appointments_by_date(supabase, date, customer_id=customer_id)
 
 
-def _get_appointments_by_outlet_and_date(
+async def _get_appointments_by_outlet_and_date(
     outlet_id: int, date: str, supabase: AClient
 ) -> List[AppointmentResponse]:
-    return _get_appointments_by_date(supabase, date, outlet_id=outlet_id)
+    return await _get_appointments_by_date(supabase, date, outlet_id=outlet_id)
 
 
 CalendarForms = Literal["Appointment", "Blocked time", "Time off", "Shift"]
@@ -83,11 +83,11 @@ class HasOverlappingStaffAppointmentsArgs(BaseModel):
     type: CalendarForms
 
 
-def _has_overlapping_staff_appointments(
+async def _has_overlapping_staff_appointments(
     args: HasOverlappingStaffAppointmentsArgs, supabase: AClient
 ) -> None:
     # Get apointments for the staff on the given date
-    appointments = _get_appointments_by_staff_and_date(
+    appointments = await _get_appointments_by_staff_and_date(
         args.staff_id, args.date_string, supabase
     )
 
@@ -127,11 +127,11 @@ class HasOverlappingCustomerAppointmentsArgs(BaseModel):
     target_end_time: str  # HH:mm
 
 
-def _has_overlapping_customer_appointments(
+async def _has_overlapping_customer_appointments(
     args: HasOverlappingCustomerAppointmentsArgs, supabase: AClient
 ) -> None:
     # Get all appointments for the customer on the given date
-    appointments = _get_appointments_by_customer_and_date(
+    appointments = await _get_appointments_by_customer_and_date(
         args.customer_id, args.date_string, supabase
     )
 

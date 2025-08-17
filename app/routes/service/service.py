@@ -50,7 +50,7 @@ async def get_all_services(supabase: AClient = Depends(get_supabase_client)):
 @service_router.get(
     "/outlet/{outlet_id}", response_model=List[ServiceWithoutLocationsResponse]
 )
-def get_all_services_from_outlet(
+async def get_all_services_from_outlet(
     outlet_id: int, supabase: AClient = Depends(get_supabase_client)
 ):
     if outlet_id not in [1, 2]:
@@ -58,7 +58,7 @@ def get_all_services_from_outlet(
 
     try:
         response = (
-            supabase.from_("service_outlet")
+            await supabase.from_("service_outlet")
             .select("service_id, services(*)")
             .eq("outlet_id", outlet_id)
             .execute()
@@ -78,12 +78,12 @@ def get_all_services_from_outlet(
 
 
 @service_router.get("/{service_id}", response_model=ServiceWithLocationsResponse)
-def get_single_service(
+async def get_single_service(
     service_id: int, supabase: AClient = Depends(get_supabase_client)
 ):
     try:
         response = (
-            supabase.from_("services")
+            await supabase.from_("services")
             .select("*, service_outlet(outlet_id)")
             .eq("id", service_id)
             .single()
@@ -110,24 +110,24 @@ def get_single_service(
 
 # Create
 @service_router.put("", status_code=201)
-def create_service(
+async def create_service(
     service_data: ServiceUpsert, supabase: AClient = Depends(get_supabase_client)
 ):
-    return _upsert_service(None, service_data, supabase)
+    return await _upsert_service(None, service_data, supabase)
 
 
 # Update
 @service_router.put("/{service_id}")
-def update_service(
+async def update_service(
     service_id: int,
     service_data: ServiceUpsert,
     supabase: AClient = Depends(get_supabase_client),
 ):
-    return _upsert_service(service_id, service_data, supabase)
+    return await _upsert_service(service_id, service_data, supabase)
 
 
 # Helper to handle both
-def _upsert_service(
+async def _upsert_service(
     service_id: Optional[int], service_data: ServiceUpsert, supabase: AClient
 ):
     # Construct payload
@@ -139,7 +139,7 @@ def _upsert_service(
     locations: List[int] = payload.pop("locations")
 
     try:
-        response = supabase.from_("services").upsert(payload).execute()
+        response = await supabase.from_("services").upsert(payload).execute()
 
         if service_id and not response.data:
             raise HTTPException(
@@ -148,18 +148,23 @@ def _upsert_service(
 
         # Clear existing links (if any)
         if service_id is not None:
-            supabase.from_("service_outlet").delete().eq(
-                "service_id", service_id
-            ).execute()
+            await (
+                supabase.from_("service_outlet")
+                .delete()
+                .eq("service_id", service_id)
+                .execute()
+            )
 
         # Update the service-outlet link table
         target_service = response.data[0]
         target_id: int = target_service["id"]
 
         for outlet_id in locations:
-            supabase.from_("service_outlet").insert(
-                {"service_id": target_id, "outlet_id": outlet_id}
-            ).execute()
+            await (
+                supabase.from_("service_outlet")
+                .insert({"service_id": target_id, "outlet_id": outlet_id})
+                .execute()
+            )
 
         return (
             "Service successfully updated"
@@ -191,9 +196,13 @@ def _upsert_service(
 
 
 @service_router.delete("/{service_id}")
-def delete_service(service_id: int, supabase: AClient = Depends(get_supabase_client)):
+async def delete_service(
+    service_id: int, supabase: AClient = Depends(get_supabase_client)
+):
     try:
-        response = supabase.from_("services").delete().eq("id", service_id).execute()
+        response = (
+            await supabase.from_("services").delete().eq("id", service_id).execute()
+        )
 
         if not response.data:
             raise HTTPException(status_code=404, detail="Service not found")

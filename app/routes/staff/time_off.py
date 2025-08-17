@@ -31,14 +31,14 @@ time_off_router = APIRouter(
 
 
 @time_off_router.get("/outlet/{outlet_id}/{date}", response_model=List[TimeOffResponse])
-def get_time_offs_for_outlet_and_date(
+async def get_time_offs_for_outlet_and_date(
     outlet_id: int, date: str, supabase: AClient = Depends(get_supabase_client)
 ):
     if outlet_id not in [1, 2]:
         raise HTTPException(status_code=400, detail="Invalid outlet id")
 
     try:
-        result = _get_time_offs_by_outlet_and_date(outlet_id, date, supabase)
+        result = await _get_time_offs_by_outlet_and_date(outlet_id, date, supabase)
         return result
 
     except Exception as e:
@@ -50,12 +50,12 @@ def get_time_offs_for_outlet_and_date(
 
 
 @time_off_router.get("/{time_off_id}", response_model=TimeOffResponse)
-def get_single_time_off(
+async def get_single_time_off(
     time_off_id: int, supabase: AClient = Depends(get_supabase_client)
 ):
     try:
         time_off = (
-            supabase.from_("time_offs")
+            await supabase.from_("time_offs")
             .select("*")
             .eq("id", time_off_id)
             .single()
@@ -76,24 +76,24 @@ def get_single_time_off(
 
 # Create
 @time_off_router.put("", status_code=201)
-def create_time_off(
+async def create_time_off(
     time_off_data: TimeOffUpsert, supabase: AClient = Depends(get_supabase_client)
 ):
-    return _upsert_time_off(None, time_off_data, supabase)
+    return await _upsert_time_off(None, time_off_data, supabase)
 
 
 # Update
 @time_off_router.put("/{time_off_id}")
-def update_time_off(
+async def update_time_off(
     time_off_id: int,
     time_off_data: TimeOffUpsert,
     supabase: AClient = Depends(get_supabase_client),
 ):
-    return _upsert_time_off(time_off_id, time_off_data, supabase)
+    return await _upsert_time_off(time_off_id, time_off_data, supabase)
 
 
 # Helper to handle both
-def _upsert_time_off(
+async def _upsert_time_off(
     time_off_id: Optional[int], time_off_data: TimeOffUpsert, supabase: AClient
 ):
     # Construct payload
@@ -106,7 +106,7 @@ def _upsert_time_off(
     staff_id = time_off_data.staff_id
 
     staff_response = (
-        supabase.from_("staffs").select("*").eq("id", staff_id).single().execute()
+        await supabase.from_("staffs").select("*").eq("id", staff_id).single().execute()
     )
 
     staff = staff_response.data
@@ -141,7 +141,7 @@ def _upsert_time_off(
             type="Time off",
         )
 
-        _is_within_staff_shift(args, supabase)
+        await _is_within_staff_shift(args, supabase)
 
         # [CROSS CHECK 2]: Time off does not clash with staff appointments
         args = HasOverlappingStaffAppointmentsArgs(
@@ -153,7 +153,7 @@ def _upsert_time_off(
             type="Time off",
         )
 
-        _has_overlapping_staff_appointments(args, supabase)
+        await _has_overlapping_staff_appointments(args, supabase)
 
         # [CROSS CHECK 3]: Time off does not clash with blocked times
         args = HasOverlappingBlockedTimeArgs(
@@ -165,7 +165,7 @@ def _upsert_time_off(
             type="Time off",
         )
 
-        _has_overlapping_blocked_times(args, supabase)
+        await _has_overlapping_blocked_times(args, supabase)
 
         # [CROSS CHECK 4]: Time off does not clash with other time offs
         args = HasOverlappingTimeOffsArgs(
@@ -178,11 +178,11 @@ def _upsert_time_off(
             time_off_id=time_off_id,  # Exclude itself
         )
 
-        _has_overlapping_time_offs(args, supabase)
+        await _has_overlapping_time_offs(args, supabase)
 
         # After passing the cross checks
         # Then only do we perform the upsert
-        response = supabase.from_("time_offs").upsert(payload).execute()
+        response = await supabase.from_("time_offs").upsert(payload).execute()
 
         if time_off_id and not response.data:
             raise HTTPException(
@@ -207,9 +207,9 @@ def _upsert_time_off(
 
 
 @time_off_router.delete("/{time_off_id}")
-def delete_time_off(time_off_id: int, supabase: AClient = Depends(get_supabase_client)):
+async def delete_time_off(time_off_id: int, supabase: AClient = Depends(get_supabase_client)):
     try:
-        response = supabase.from_("time_offs").delete().eq("id", time_off_id).execute()
+        response = await supabase.from_("time_offs").delete().eq("id", time_off_id).execute()
 
         if not response.data:
             raise HTTPException(status_code=404, detail="Time off not found")

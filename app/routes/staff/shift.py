@@ -26,12 +26,12 @@ shift_router = APIRouter(
 
 
 @shift_router.get("/staff/{staff_id}/{date}", response_model=ShiftResponse)
-def get_shifts_by_staff_and_date(
+async def get_shifts_by_staff_and_date(
     staff_id: int, date: str, supabase: AClient = Depends(get_supabase_client)
 ):
     try:
         shift = (
-            supabase.from_("shifts")
+            await supabase.from_("shifts")
             .select("*")
             .eq("staff_id", staff_id)
             .eq("shift_date", date)
@@ -55,7 +55,7 @@ def get_shifts_by_staff_and_date(
 
 
 @shift_router.get("/outlet/{outlet_id}/{date}", response_model=List[ShiftResponse])
-def get_shifts_by_outlet_and_date(
+async def get_shifts_by_outlet_and_date(
     outlet_id: int, date: str, supabase: AClient = Depends(get_supabase_client)
 ):
     if outlet_id not in [1, 2]:
@@ -64,7 +64,7 @@ def get_shifts_by_outlet_and_date(
     try:
         # First get staff IDs for the outlet
         staff_response = (
-            supabase.from_("staff_outlet")
+            await supabase.from_("staff_outlet")
             .select("staff_id")
             .eq("outlet_id", outlet_id)
             .execute()
@@ -73,7 +73,7 @@ def get_shifts_by_outlet_and_date(
 
         # Then get shifts for those staff on the date
         shifts = (
-            supabase.from_("shifts")
+            await supabase.from_("shifts")
             .select("*")
             .in_("staff_id", staff_ids)
             .eq("shift_date", date)
@@ -92,24 +92,24 @@ def get_shifts_by_outlet_and_date(
 
 # Create
 @shift_router.put("", status_code=201)
-def create_shift(
+async def create_shift(
     shift_data: ShiftUpsert, supabase: AClient = Depends(get_supabase_client)
 ):
-    return _upsert_shift(None, shift_data, supabase)
+    return await _upsert_shift(None, shift_data, supabase)
 
 
 # Update
 @shift_router.put("/{shift_id}")
-def update_shift(
+async def update_shift(
     shift_id: int,
     shift_data: ShiftUpsert,
     supabase: AClient = Depends(get_supabase_client),
 ):
-    return _upsert_shift(shift_id, shift_data, supabase)
+    return await _upsert_shift(shift_id, shift_data, supabase)
 
 
 # Helper to handle both
-def _upsert_shift(shift_id: Optional[int], shift_data: ShiftUpsert, supabase: AClient):
+async def _upsert_shift(shift_id: Optional[int], shift_data: ShiftUpsert, supabase: AClient):
     # Construct payload
     payload = shift_data.model_dump(exclude_unset=True, by_alias=False)
 
@@ -125,7 +125,7 @@ def _upsert_shift(shift_id: Optional[int], shift_data: ShiftUpsert, supabase: AC
 
     try:
         # [CROSS CHECK 1]: Shift does not cause any staff appointments to fall out of range
-        staff_appointments = _get_appointments_by_staff_and_date(
+        staff_appointments = await _get_appointments_by_staff_and_date(
             shift_staff_id, shift_date, supabase
         )
 
@@ -143,7 +143,7 @@ def _upsert_shift(shift_id: Optional[int], shift_data: ShiftUpsert, supabase: AC
             )
 
         # [CROSS CHECK 2]: Shift does not cause any staff time offs to fall out of range
-        staff_time_offs = _get_time_offs_by_staff_and_date(
+        staff_time_offs = await _get_time_offs_by_staff_and_date(
             shift_staff_id, shift_date, supabase
         )
 
@@ -159,7 +159,7 @@ def _upsert_shift(shift_id: Optional[int], shift_data: ShiftUpsert, supabase: AC
             )
 
         # [CROSS CHECK 3]: Shift does not cause any staff blocked time to fall out of range
-        staff_blocked_times = _get_blocked_times_by_staff_and_date(
+        staff_blocked_times = await _get_blocked_times_by_staff_and_date(
             shift_staff_id, shift_date, supabase
         )
 
@@ -176,7 +176,7 @@ def _upsert_shift(shift_id: Optional[int], shift_data: ShiftUpsert, supabase: AC
 
         # After passing the cross checks
         # Then only do we perform the upsert
-        response = supabase.from_("shifts").upsert(payload).execute()
+        response = await supabase.from_("shifts").upsert(payload).execute()
 
         if shift_id and not response.data:
             raise HTTPException(status_code=404, detail="Shift to be updated not found")

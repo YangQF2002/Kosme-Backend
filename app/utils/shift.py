@@ -25,10 +25,10 @@ class IsWithinStaffShiftArgs(BaseModel):
     type: CalendarFormsWithoutShift
 
 
-def _is_within_staff_shift(args: IsWithinStaffShiftArgs, supabase: AClient) -> None:
+async def _is_within_staff_shift(args: IsWithinStaffShiftArgs, supabase: AClient) -> None:
     # Get staff shift for the specific date
     staff_shift_response = (
-        supabase.from_("shifts")
+        await supabase.from_("shifts")
         .select("*")
         .eq("staff_id", args.staff_id)
         .eq("shift_date", args.date_string)

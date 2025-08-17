@@ -17,22 +17,22 @@ from app.utils.general import has_overlap
 """
 
 
-def _get_blocked_times_by_staff_and_date(
+async def _get_blocked_times_by_staff_and_date(
     staff_id: int, date: str, supabase: AClient
 ) -> List[BlockedTimeResponse]:
     all_blocked_times = (
-        supabase.from_("blocked_times").select("*").eq("staff_id", staff_id).execute()
+        await supabase.from_("blocked_times").select("*").eq("staff_id", staff_id).execute()
     ).data
 
     return _filter_by_frequency_and_ends_type(all_blocked_times, date)
 
 
-def _get_blocked_times_by_outlet_and_date(
+async def _get_blocked_times_by_outlet_and_date(
     outlet_id: int, date: str, supabase: AClient
 ) -> List[BlockedTimeResponse]:
     # First, get staff IDs for the outlet
     staff_ids_response = (
-        supabase.from_("staff_outlet")
+        await supabase.from_("staff_outlet")
         .select("staff_id")
         .eq("outlet_id", outlet_id)
         .execute()
@@ -42,7 +42,7 @@ def _get_blocked_times_by_outlet_and_date(
 
     # Then, get blocked times for those staff
     all_blocked_times = (
-        supabase.from_("blocked_times")
+        await supabase.from_("blocked_times")
         .select("*")
         .in_("staff_id", staff_ids)
         .eq("start_date", date)
@@ -161,11 +161,11 @@ class HasOverlappingBlockedTimeArgs(BaseModel):
     type: CalendarForms
 
 
-def _has_overlapping_blocked_times(
+async def _has_overlapping_blocked_times(
     args: HasOverlappingBlockedTimeArgs, supabase: AClient
 ) -> None:
     # Get blocked times for the staff on the given date
-    blocked_times = _get_blocked_times_by_staff_and_date(
+    blocked_times = await _get_blocked_times_by_staff_and_date(
         args.staff_id, args.date_string, supabase
     )
 

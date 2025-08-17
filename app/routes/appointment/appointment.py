@@ -48,9 +48,9 @@ appointment_router = APIRouter(
 
 
 @appointment_router.get("", response_model=List[AppointmentResponse])
-def get_all_appointments(supabase: AClient = Depends(get_supabase_client)):
+async def get_all_appointments(supabase: AClient = Depends(get_supabase_client)):
     try:
-        appointments = supabase.from_("appointments").select("*").execute()
+        appointments = await supabase.from_("appointments").select("*").execute()
         return appointments.data
 
     except Exception as e:
@@ -61,14 +61,16 @@ def get_all_appointments(supabase: AClient = Depends(get_supabase_client)):
 @appointment_router.get(
     "/outlet/{outlet_id}/{date}", response_model=List[AppointmentResponse]
 )
-def get_appointments_by_outlet_and_date(
+async def get_appointments_by_outlet_and_date(
     outlet_id: int, date: str, supabase: AClient = Depends(get_supabase_client)
 ):
     if outlet_id not in [1, 2]:
         raise HTTPException(status_code=400, detail="Invalid outlet id")
 
     try:
-        appointments = _get_appointments_by_outlet_and_date(outlet_id, date, supabase)
+        appointments = await _get_appointments_by_outlet_and_date(
+            outlet_id, date, supabase
+        )
         return appointments
 
     except Exception as e:
@@ -79,12 +81,12 @@ def get_appointments_by_outlet_and_date(
 
 
 @appointment_router.get("/{appointment_id}", response_model=AppointmentResponse)
-def get_single_appointment(
+async def get_single_appointment(
     appointment_id: int, supabase: AClient = Depends(get_supabase_client)
 ):
     try:
         appointment = (
-            supabase.from_("appointments")
+            await supabase.from_("appointments")
             .select("*")
             .eq("id", appointment_id)
             .single()
@@ -107,14 +109,14 @@ def get_single_appointment(
 
 # Update status
 @appointment_router.put("/status/{appointment_id}")
-def update_appointment_status(
+async def update_appointment_status(
     appointment_id: int,
     status: AppointmentStatus,
     supabase: AClient = Depends(get_supabase_client),
 ):
     try:
         response = (
-            supabase.from_("appointments")
+            await supabase.from_("appointments")
             .update({"status": status})
             .eq("id", appointment_id)
             .execute()
@@ -139,25 +141,25 @@ def update_appointment_status(
 
 # Create
 @appointment_router.put("", status_code=201)
-def create_appointment(
+async def create_appointment(
     appointment_data: AppointmentUpsert,
     supabase: AClient = Depends(get_supabase_client),
 ):
-    return _upsert_appointment(None, appointment_data, supabase)
+    return await _upsert_appointment(None, appointment_data, supabase)
 
 
 # Update
 @appointment_router.put("/{appointment_id}")
-def update_appointment(
+async def update_appointment(
     appointment_id: int,
     appointment_data: AppointmentUpsert,
     supabase: AClient = Depends(get_supabase_client),
 ):
-    return _upsert_appointment(appointment_id, appointment_data, supabase)
+    return await _upsert_appointment(appointment_id, appointment_data, supabase)
 
 
 # Helper to handle both
-def _upsert_appointment(
+async def _upsert_appointment(
     appointment_id: Optional[int],
     appointment_data: AppointmentUpsert,
     supabase: AClient,
@@ -172,7 +174,7 @@ def _upsert_appointment(
     staff_id = appointment_data.staff_id
 
     staff_response = (
-        supabase.from_("staffs").select("*").eq("id", staff_id).single().execute()
+        await supabase.from_("staffs").select("*").eq("id", staff_id).single().execute()
     )
 
     staff = staff_response.data
@@ -191,7 +193,11 @@ def _upsert_appointment(
     # Extra info for cross check 5
     customer_id = appointment_data.customer_id
     customer: CustomerResponse = (
-        supabase.from_("customers").select("*").eq("id", customer_id).single().execute()
+        await supabase.from_("customers")
+        .select("*")
+        .eq("id", customer_id)
+        .single()
+        .execute()
     ).data
 
     if not customer:
@@ -215,7 +221,7 @@ def _upsert_appointment(
             type="Appointment",
         )
 
-        _is_within_staff_shift(args, supabase)
+        await _is_within_staff_shift(args, supabase)
 
         # [CROSS CHECK 2]: Appointment does not clash with time-offs
         args = HasOverlappingTimeOffsArgs(
@@ -227,7 +233,7 @@ def _upsert_appointment(
             type="Appointment",
         )
 
-        _has_overlapping_time_offs(args, supabase)
+        await _has_overlapping_time_offs(args, supabase)
 
         # [CROSS CHECK 3]: Appointment does not clash with blocked-times
         args = HasOverlappingBlockedTimeArgs(
@@ -239,7 +245,7 @@ def _upsert_appointment(
             type="Appointment",
         )
 
-        _has_overlapping_blocked_times(args, supabase)
+        await _has_overlapping_blocked_times(args, supabase)
 
         # [CROSS CHECK 4]: Appointment does not clash with other staff appointments
         args = HasOverlappingStaffAppointmentsArgs(
@@ -252,7 +258,7 @@ def _upsert_appointment(
             appointment_id=appointment_id,  # Exclude itself
         )
 
-        _has_overlapping_staff_appointments(args, supabase)
+        await _has_overlapping_staff_appointments(args, supabase)
 
         # [CROSS CHECK 5]: Appointment does not clash with other customer appointments
         args = HasOverlappingCustomerAppointmentsArgs(
@@ -264,7 +270,7 @@ def _upsert_appointment(
             target_end_time=appointment_end_time,
         )
 
-        _has_overlapping_customer_appointments(args, supabase)
+        await _has_overlapping_customer_appointments(args, supabase)
 
         # After passing the cross checks
         # Then only do we perform the upsert
@@ -274,7 +280,7 @@ def _upsert_appointment(
         payload["start_time"] = payload["start_time"].now().isoformat()
         payload["end_time"] = payload["end_time"].now().isoformat()
 
-        response = supabase.from_("appointments").upsert(payload).execute()
+        response = await supabase.from_("appointments").upsert(payload).execute()
 
         if appointment_id and not response.data:
             raise HTTPException(
@@ -291,7 +297,7 @@ def _upsert_appointment(
             # First, establish some basic info
             service_id = appointment_data.service_id
             service: ServiceWithoutLocationsResponse = (
-                supabase.from_("service")
+                await supabase.from_("service")
                 .select("*")
                 .eq("id", service_id)
                 .single()
@@ -318,9 +324,12 @@ def _upsert_appointment(
 
                 # Deduct credits
                 new_balance = customer.credit_balance - credit_diff
-                supabase.from_("customers").update({"credit_balance": new_balance}).eq(
-                    "id", customer.id
-                ).execute()
+                await (
+                    supabase.from_("customers")
+                    .update({"credit_balance": new_balance})
+                    .eq("id", customer.id)
+                    .execute()
+                )
 
                 # Record deduction
                 transaction_info = {
@@ -332,7 +341,11 @@ def _upsert_appointment(
                     if appointment_id
                     else f"Used {current_cost} credits for new appointment",
                 }
-                supabase.from_("credit_transactions").insert(transaction_info).execute()
+                await (
+                    supabase.from_("credit_transactions")
+                    .insert(transaction_info)
+                    .execute()
+                )
 
             # Refund surplus credits
             # ONLY possible on UPDATE
@@ -341,9 +354,12 @@ def _upsert_appointment(
                 new_balance = customer.credit_balance + refund_amount
 
                 # Perform refund
-                supabase.from_("customers").update({"credit_balance": new_balance}).eq(
-                    "id", customer.id
-                ).execute()
+                await (
+                    supabase.from_("customers")
+                    .update({"credit_balance": new_balance})
+                    .eq("id", customer.id)
+                    .execute()
+                )
 
                 # Record refund
                 transaction_info = {
@@ -353,12 +369,19 @@ def _upsert_appointment(
                     "type": "refund",
                     "description": f"Refunded {refund_amount} credits after service change",
                 }
-                supabase.from_("credit_transactions").insert(transaction_info).execute()
+                await (
+                    supabase.from_("credit_transactions")
+                    .insert(transaction_info)
+                    .execute()
+                )
 
             # Safety, may not necessarily need
-            supabase.from_("appointments").update(
-                {"credits_paid": current_cost, "payment_status": "Paid"}
-            ).eq("id", target_appointment_id).execute()
+            await (
+                supabase.from_("appointments")
+                .update({"credits_paid": current_cost, "payment_status": "Paid"})
+                .eq("id", target_appointment_id)
+                .execute()
+            )
 
         else:
             # Handle refund if switching from credits to cash/card
@@ -368,9 +391,12 @@ def _upsert_appointment(
                 new_balance = customer.credit_balance + previous_credits_paid
 
                 # Perform refund
-                supabase.from_("customers").update({"credit_balance": new_balance}).eq(
-                    "id", customer.id
-                ).execute()
+                await (
+                    supabase.from_("customers")
+                    .update({"credit_balance": new_balance})
+                    .eq("id", customer.id)
+                    .execute()
+                )
 
                 # Record refund
                 transaction_info = {
@@ -380,12 +406,19 @@ def _upsert_appointment(
                     "type": "refund",
                     "description": f"Refunded {previous_credits_paid} credits after switching to card/cash payment",
                 }
-                supabase.from_("credit_transactions").insert(transaction_info).execute()
+                await (
+                    supabase.from_("credit_transactions")
+                    .insert(transaction_info)
+                    .execute()
+                )
 
             # Safety, may not necessarily need
-            supabase.from_("appointments").update(
-                {"credits_paid": 0, "payment_status": "Pending"}
-            ).eq("id", target_appointment_id).execute()
+            await (
+                supabase.from_("appointments")
+                .update({"credits_paid": 0, "payment_status": "Pending"})
+                .eq("id", target_appointment_id)
+                .execute()
+            )
 
         return (
             "Appointment successfully updated"
@@ -405,12 +438,15 @@ def _upsert_appointment(
 
 
 @appointment_router.delete("/{appointment_id}")
-def delete_appointment(
+async def delete_appointment(
     appointment_id: int, supabase: AClient = Depends(get_supabase_client)
 ):
     try:
         response = (
-            supabase.from_("appointments").delete().eq("id", appointment_id).execute()
+            await supabase.from_("appointments")
+            .delete()
+            .eq("id", appointment_id)
+            .execute()
         )
 
         if not response.data:
@@ -424,7 +460,7 @@ def delete_appointment(
 
         customer_id = deleted_appointment.customer_id
         customer: CustomerResponse = (
-            supabase.from_("customers")
+            await supabase.from_("customers")
             .select("*")
             .eq("id", customer_id)
             .single()
@@ -435,9 +471,12 @@ def delete_appointment(
             # Perform the refund
             new_credit_balance = customer.credit_balance + credits_paid
 
-            supabase.from_("customers").update(
-                {"credit_balance": new_credit_balance}
-            ).eq("id", customer_id).execute()
+            await (
+                supabase.from_("customers")
+                .update({"credit_balance": new_credit_balance})
+                .eq("id", customer_id)
+                .execute()
+            )
 
             # Record refund down via a credit transaction
             transaction_info: CreditTransactionCreate = {
@@ -447,7 +486,9 @@ def delete_appointment(
                 "type": "refund",
                 "description": f"Refunded {credits_paid} credits for cancelled appointment",
             }
-            supabase.from_("credit_transactions").insert(transaction_info).execute()
+            await (
+                supabase.from_("credit_transactions").insert(transaction_info).execute()
+            )
 
         return "Appointment successfully deleted"
 
