@@ -78,4 +78,10 @@
     uvicorn app.main:app --reload --host 0.0.0.0 --port 8080
     ```
 
-11. (Optional) Paste the `seed.sql` file into Supabase's SQL editor (to seed the database)
+11. Or, run the deployed server
+
+    ```
+    # https://kosme-backend.onrender.com
+    ```
+
+12. (Optional) Paste the `seed.sql` file into Supabase's SQL editor (to seed the database)
