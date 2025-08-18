@@ -68,6 +68,8 @@
    SUPABASE_KEY=
    ```
 
+   <br>
+
 10. Run the local server
 
     ```
@@ -83,5 +85,7 @@
     ```
     # https://kosme-backend.onrender.com
     ```
+
+    <br>
 
 12. (Optional) Paste the `seed.sql` file into Supabase's SQL editor (to seed the database)
