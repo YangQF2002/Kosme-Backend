@@ -88,4 +88,4 @@
 
     <br>
 
-12. (Optional) Paste the `seed.sql` file into Supabase's SQL editor (to seed the database)
+12. (Optional) Paste the `db/seed.sql` file into Supabase's SQL editor (to seed the database)
