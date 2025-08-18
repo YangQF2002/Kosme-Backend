@@ -182,8 +182,8 @@ async def _has_overlapping_blocked_times(
     # Check for overlaps
     has_overlapping = any(
         has_overlap(
-            blocked_time["from_time"],
-            blocked_time["to_time"],
+            blocked_time["from_time"][:5],  # Cut away the seconds
+            blocked_time["to_time"][:5],  # Cut away the seconds
             args.target_start_time,
             args.target_end_time,
         )

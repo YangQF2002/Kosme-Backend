@@ -148,8 +148,8 @@ async def _upsert_shift(
         )
 
         is_all_within_range = all(
-            time_off["start_time"] >= shift_start_time
-            and time_off["end_time"] <= shift_end_time
+            time_off["start_time"] >= shift_start_time.strftime("%H:%M")
+            and time_off["end_time"] <= shift_end_time.strftime("%H:%M")
             for time_off in staff_time_offs
         )
 
@@ -164,8 +164,8 @@ async def _upsert_shift(
         )
 
         is_all_within_range = all(
-            blocked_time["from_time"] >= shift_start_time
-            and blocked_time["to_time"] <= shift_end_time
+            blocked_time["from_time"] >= shift_start_time.strftime("%H:%M")
+            and blocked_time["to_time"] <= shift_end_time.strftime("%H:%M")
             for blocked_time in staff_blocked_times
         )
 

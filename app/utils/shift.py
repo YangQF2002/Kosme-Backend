@@ -25,7 +25,9 @@ class IsWithinStaffShiftArgs(BaseModel):
     type: CalendarFormsWithoutShift
 
 
-async def _is_within_staff_shift(args: IsWithinStaffShiftArgs, supabase: AClient) -> None:
+async def _is_within_staff_shift(
+    args: IsWithinStaffShiftArgs, supabase: AClient
+) -> None:
     # Get staff shift for the specific date
     staff_shift_response = (
         await supabase.from_("shifts")
@@ -42,8 +44,8 @@ async def _is_within_staff_shift(args: IsWithinStaffShiftArgs, supabase: AClient
 
     # Determine shift hours (use defaults if no shift found)
     if staff_shift:
-        shift_start_time = staff_shift.get("start_time")
-        shift_end_time = staff_shift.get("end_time")
+        shift_start_time = staff_shift["start_time"][:5]  # Cut away the seconds
+        shift_end_time = staff_shift["end_time"][:5]  # Cut away the seconds
     else:
         shift_start_time = WEEKDAY_OPENING if args.is_weekday else WEEKEND_OPENING
         shift_end_time = WEEKDAY_CLOSING if args.is_weekday else WEEKEND_CLOSING

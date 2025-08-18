@@ -96,8 +96,8 @@ async def _has_overlapping_time_offs(
     # Check for overlaps
     has_overlapping = any(
         has_overlap(
-            time_off["start_time"],
-            time_off["end_time"],
+            time_off["start_time"][:5],  # Cut away the seconds
+            time_off["end_time"][:5],  # Cut away the seconds
             args.target_start_time,
             args.target_end_time,
         )
