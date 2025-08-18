@@ -5,3 +5,6 @@ fastapi
 python-dotenv
 supabase 
 uvicorn 
+
+# If not the render deployment complains 
+pydantic[email]
