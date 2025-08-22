@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 from typing import List, Optional
 
@@ -19,18 +19,30 @@ class MembershipStatusEnum(str, Enum):
 
 
 """
-    POST
-    1) /api/customers
+    PUT
+    1) /api/customers/:customer_id? 
 """
 
 
-class CustomerCreate(BaseSchema):
+class CustomerUpsert(BaseSchema):
     # The ... says that the field is required
     first_name: str = Field(..., max_length=100, alias="firstName")
     last_name: str = Field(..., max_length=100, alias="lastName")
     email: EmailStr = Field(..., max_length=255)
-    phone: Optional[str] = Field(None, max_length=20)
-    birthday: Optional[datetime] = None
+    phone: str = Field(..., max_length=20)
+    birthday: Optional[date] = None
+
+
+"""
+    GET
+    1) /api/customers
+    2) /api/customers/search
+    3) /api/customers/:customer_id
+"""
+
+
+class CustomerResponse(CustomerUpsert):
+    id: int = Field(..., gt=0)
 
     membership_type: Optional[str] = Field(None, max_length=50, alias="membershipType")
     membership_status: MembershipStatusEnum = Field(alias="membershipStatus")
@@ -43,17 +55,5 @@ class CustomerCreate(BaseSchema):
     allergies: List[str]
     reminders: ReminderEnum
 
-
-"""
-    GET
-    1) /api/customers
-    2) /api/customers/search
-    3) /api/customers/:customer_id
-"""
-
-
-class CustomerResponse(CustomerCreate):
-    id: int = Field(..., gt=0)
-
-    credit_balance: int
+    credit_balance: int = Field(..., ge=0)
     created_at: datetime

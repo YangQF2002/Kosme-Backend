@@ -58,7 +58,7 @@ async def get_single_time_off(
             await supabase.from_("time_offs")
             .select("*")
             .eq("id", time_off_id)
-            .single()
+            .maybe_single()
             .execute()
         )
 

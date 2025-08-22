@@ -1,11 +1,11 @@
 import logging
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from supabase import AClient
 
 from app.models.appointment.appointment import AppointmentResponse
-from app.models.customer import CustomerCreate, CustomerResponse
+from app.models.customer import CustomerResponse, CustomerUpsert
 from db.supabase import get_supabase_client
 
 logger = logging.getLogger(__name__)
@@ -55,7 +55,9 @@ async def search_customers(
 
 
 @customer_router.get("/{customer_id}", response_model=CustomerResponse)
-async def get_customer(customer_id: int, supabase: AClient = Depends(get_supabase_client)):
+async def get_customer(
+    customer_id: int, supabase: AClient = Depends(get_supabase_client)
+):
     try:
         target_customer = (
             await supabase.from_("customers")
@@ -116,15 +118,52 @@ async def get_customer_appointments(
         )
 
 
-@customer_router.post("", status_code=201)
+# Create
+@customer_router.put("", status_code=201)
 async def create_customer(
-    customer_data: CustomerCreate, supabase: AClient = Depends(get_supabase_client)
+    customer_data: CustomerUpsert, supabase: AClient = Depends(get_supabase_client)
 ):
+    return await _upsert_customer(None, customer_data, supabase)
+
+
+# Update
+@customer_router.put("/{customer_id}")
+async def update_customer(
+    customer_id: int,
+    customer_data: CustomerUpsert,
+    supabase: AClient = Depends(get_supabase_client),
+):
+    return await _upsert_customer(customer_id, customer_data, supabase)
+
+
+# Helper to handle both
+async def _upsert_customer(
+    customer_id: Optional[int], customer_data: CustomerUpsert, supabase: AClient
+):
+    # Construct payload
+    payload = customer_data.model_dump(exclude_unset=True, by_alias=False)
+
+    if customer_id is not None:
+        payload["id"] = customer_id
+
     try:
-        create_details = customer_data.model_dump(mode="json")
-        await supabase.from_("customers").insert(create_details).execute()
-        return "Customer successfully created"
+        response = await supabase.from_("customers").upsert(payload).execute()
+
+        if customer_id and not response.data:
+            raise HTTPException(
+                status_code=404, detail="Customer to be updated not found"
+            )
+
+        return (
+            "Customer successfully updated"
+            if customer_id
+            else "Customer successfully created"
+        )
 
     except Exception as e:
-        logger.error(f"Error creating customer: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=400, detail="Failed to create customer")
+        logger.error(f"Error upserting customer: {str(e)}", exc_info=True)
+
+        action = "update" if customer_id else "create"
+        raise HTTPException(
+            status_code=500, detail=f"Failed to {action} single customer"
+        )

@@ -10,8 +10,8 @@
 -- Outlets
 INSERT INTO outlets (id, name, address, phone, active)
 VALUES
-  (1, 'Orchard Gateway', '277 Orchard Road, Singapore 238858', '+65 6123 4567', true),
-  (2, 'Paya Lebar Quarter', '10 Paya Lebar Road, Singapore 409057', '+65 6234 5678', true)
+  (1, 'Orchard Gateway', '277 Orchard Road, Singapore 238858', '61234567', true),
+  (2, 'Paya Lebar Quarter', '10 Paya Lebar Road, Singapore 409057', '62345678', true)
 ON CONFLICT (id) DO NOTHING;
 
 
@@ -78,14 +78,14 @@ ON CONFLICT (service_id, outlet_id) DO NOTHING;
 -- Staffs
 INSERT INTO staffs (id, first_name, last_name, email, phone, role, bookable,active)
 VALUES
-  (1, 'Sarah', 'Adams', 'sarah@beautybook.com', '+65 9123 4567', 'Senior Therapist', true, true),
-  (2, 'Maria', 'Johnson', 'maria@beautybook.com', '+65 9234 5678', 'Nail Specialist', true, true),
-  (3, 'Jennifer', 'Kim', 'jennifer@beautybook.com', '+65 9345 6789', 'Massage Therapist', false, true),
-  (4, 'Natalie', 'Leong', 'natalie@beautybook.com', '+65 9678 9012', 'Facial Specialist', false, false),
-  (5, 'Lisa', 'Wong', 'lisa@beautybook.com', '+65 9456 7890', 'Senior Therapist', true, false),
-  (6, 'Rachel', 'Tan', 'rachel@beautybook.com', '+65 9567 8901', 'Facial Specialist', true, false),
-  (7, 'Shireen', 'Ling', 'shireen@beautybook.com', '+65 9789 0123', 'Beauty Therapist', false, true),
-  (8, 'Chloe', 'Mok', 'chloe@beautybook.com', '+65 9890 1234', 'Aesthetician', true, false)
+  (1, 'Sarah', 'Adams', 'sarah@beautybook.com', '91234567', 'Senior Therapist', true, true),
+  (2, 'Maria', 'Johnson', 'maria@beautybook.com', '92345678', 'Nail Specialist', true, true),
+  (3, 'Jennifer', 'Kim', 'jennifer@beautybook.com', '93456789', 'Massage Therapist', false, true),
+  (4, 'Natalie', 'Leong', 'natalie@beautybook.com', '96789012', 'Facial Specialist', false, false),
+  (5, 'Lisa', 'Wong', 'lisa@beautybook.com', '94567890', 'Senior Therapist', true, false),
+  (6, 'Rachel', 'Tan', 'rachel@beautybook.com', '95678901', 'Facial Specialist', true, false),
+  (7, 'Shireen', 'Ling', 'shireen@beautybook.com', '97890123', 'Beauty Therapist', false, true),
+  (8, 'Chloe', 'Mok', 'chloe@beautybook.com', '98901234', 'Aesthetician', true, false)
 ON CONFLICT (id) DO NOTHING;
 
 
@@ -107,10 +107,10 @@ ON CONFLICT (staff_id, outlet_id) DO NOTHING;
 -- Customers
 INSERT INTO customers (id, first_name, last_name, email, phone, birthday, membership_type, membership_status, preferred_therapist_id, preferred_outlet_id, allergies, reminders, credit_balance, created_at)
 VALUES
-  (1, 'Emily', 'Chen', 'emily.chen@email.com', '+65 9111 2222', NULL, NULL, 'Active', 1, 1, ARRAY['Essential oils', 'Parabens', 'Latex'], 'Email + SMS', 2, NOW()),
-  (2, 'Jessica', 'Lim', 'jessica.lim@email.com', '+65 9333 4444', NULL, NULL, 'Active', 2, 1, ARRAY['Essential oils', 'Parabens', 'Latex'], 'Email + SMS', 2, NOW()),
-  (3, 'Amanda', 'Ng', 'amanda.ng@email.com', '+65 9555 6666', NULL, NULL, 'Active', 5, 2, ARRAY['Essential oils', 'Parabens', 'Latex'], 'Email + SMS', 2, NOW()),
-  (4, 'Michelle', 'Tan', 'michelle.tan@email.com', '+65 9777 8888', NULL, NULL, 'Active', 6, 2, ARRAY['Essential oils', 'Parabens', 'Latex'], 'Email + SMS', 2, NOW())
+  (1, 'Emily', 'Chen', 'emily.chen@email.com', '91112222', NULL, NULL, 'Active', 1, 1, ARRAY['Essential oils', 'Parabens', 'Latex'], 'Email + SMS', 2, NOW()),
+  (2, 'Jessica', 'Lim', 'jessica.lim@email.com', '93334444', NULL, NULL, 'Active', 2, 1, ARRAY['Essential oils', 'Parabens', 'Latex'], 'Email + SMS', 2, NOW()),
+  (3, 'Amanda', 'Ng', 'amanda.ng@email.com', '95556666', NULL, NULL, 'Active', 5, 2, ARRAY['Essential oils', 'Parabens', 'Latex'], 'Email + SMS', 2, NOW()),
+  (4, 'Michelle', 'Tan', 'michelle.tan@email.com', '97778888', NULL, NULL, 'Active', 6, 2, ARRAY['Essential oils', 'Parabens', 'Latex'], 'Email + SMS', 2, NOW())
 ON CONFLICT (id) DO NOTHING;
 
 
