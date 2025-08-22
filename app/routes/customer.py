@@ -146,6 +146,9 @@ async def _upsert_customer(
     if customer_id is not None:
         payload["id"] = customer_id
 
+    if payload.get("birthday"):
+        payload["birthday"] = payload["birthday"].isoformat()
+
     try:
         response = await supabase.from_("customers").upsert(payload).execute()
 

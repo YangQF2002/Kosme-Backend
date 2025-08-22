@@ -30,7 +30,7 @@ class CustomerUpsert(BaseSchema):
     last_name: str = Field(..., max_length=100, alias="lastName")
     email: EmailStr = Field(..., max_length=255)
     phone: str = Field(..., max_length=20)
-    birthday: Optional[date] = None
+    birthday: Optional[date] = Field(None)
 
 
 """
