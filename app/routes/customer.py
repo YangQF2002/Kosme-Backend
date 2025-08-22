@@ -170,3 +170,24 @@ async def _upsert_customer(
         raise HTTPException(
             status_code=500, detail=f"Failed to {action} single customer"
         )
+
+
+@customer_router.delete("/{customer_id}")
+async def delete_customer(
+    customer_id: int, supabase: AClient = Depends(get_supabase_client)
+):
+    try:
+        response = (
+            await supabase.from_("customers").delete().eq("id", customer_id).execute()
+        )
+
+        if not response.data:
+            raise HTTPException(status_code=404, detail="Customer not found")
+
+        return "Customer successfully deleted"
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting customer {customer_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to delete single customer")
