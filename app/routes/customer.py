@@ -63,11 +63,11 @@ async def get_customer(
             await supabase.from_("customers")
             .select("*")
             .eq("id", customer_id)
-            .single()
+            .maybe_single()
             .execute()
         )
 
-        if not target_customer.data:
+        if not target_customer:
             raise HTTPException(status_code=404, detail="Customer not found")
 
         return target_customer.data
