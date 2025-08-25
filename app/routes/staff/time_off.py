@@ -6,10 +6,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from supabase import AClient
 
 from app.models.staff.time_off import TimeOffResponse, TimeOffUpsert
-from app.utils.appointment import (
-    HasOverlappingStaffAppointmentsArgs,
-    _has_overlapping_staff_appointments,
-)
 from app.utils.blocked_time import (
     HasOverlappingBlockedTimeArgs,
     _has_overlapping_blocked_times,
@@ -143,19 +139,7 @@ async def _upsert_time_off(
 
         await _is_within_staff_shift(args, supabase)
 
-        # [CROSS CHECK 2]: Time off does not clash with staff appointments
-        args = HasOverlappingStaffAppointmentsArgs(
-            staff_id=staff_id,
-            staff=staff,
-            date_string=date_string,
-            target_start_time=time_off_start_time,
-            target_end_time=time_off_end_time,
-            type="Time off",
-        )
-
-        await _has_overlapping_staff_appointments(args, supabase)
-
-        # [CROSS CHECK 3]: Time off does not clash with blocked times
+        # [CROSS CHECK 2]: Time off does not clash with blocked times
         args = HasOverlappingBlockedTimeArgs(
             staff_id=staff_id,
             staff=staff,
@@ -167,7 +151,7 @@ async def _upsert_time_off(
 
         await _has_overlapping_blocked_times(args, supabase)
 
-        # [CROSS CHECK 4]: Time off does not clash with other time offs
+        # [CROSS CHECK 3]: Time off does not clash with other time offs
         args = HasOverlappingTimeOffsArgs(
             staff_id=staff_id,
             staff=staff,

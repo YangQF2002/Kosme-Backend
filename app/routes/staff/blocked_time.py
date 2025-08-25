@@ -6,10 +6,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from supabase import AClient
 
 from app.models.staff.blocked_time import BlockedTimeResponse, BlockedTimeUpsert
-from app.utils.appointment import (
-    HasOverlappingStaffAppointmentsArgs,
-    _has_overlapping_staff_appointments,
-)
 from app.utils.blocked_time import (
     HasOverlappingBlockedTimeArgs,
     _get_blocked_times_by_outlet_and_date,
@@ -149,19 +145,7 @@ async def _upsert_blocked_time(
 
         await _is_within_staff_shift(args, supabase)
 
-        # [CROSS CHECK 2]: Blocked time does not clash with staff appointments
-        args = HasOverlappingStaffAppointmentsArgs(
-            staff_id=staff_id,
-            staff=staff,
-            date_string=date_string,
-            target_start_time=blocked_time_start_time,
-            target_end_time=blocked_time_end_time,
-            type="Blocked time",
-        )
-
-        await _has_overlapping_staff_appointments(args, supabase)
-
-        # [CROSS CHECK 3]: Blocked time does not clash with other blocked times
+        # [CROSS CHECK 2]: Blocked time does not clash with other blocked times
         args = HasOverlappingBlockedTimeArgs(
             staff_id=staff_id,
             staff=staff,
@@ -174,7 +158,7 @@ async def _upsert_blocked_time(
 
         await _has_overlapping_blocked_times(args, supabase)
 
-        # [CROSS CHECK 4]: Blocked time does not clash with time offs
+        # [CROSS CHECK 3]: Blocked time does not clash with time offs
         args = HasOverlappingTimeOffsArgs(
             staff_id=staff_id,
             staff=staff,

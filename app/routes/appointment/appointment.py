@@ -14,11 +14,7 @@ from app.models.service.service import (
     ServiceWithoutLocationsResponse,
 )
 from app.utils.appointment import (
-    HasOverlappingCustomerAppointmentsArgs,
-    HasOverlappingStaffAppointmentsArgs,
     _get_appointments_by_outlet_and_date,
-    _has_overlapping_customer_appointments,
-    _has_overlapping_staff_appointments,
 )
 from app.utils.blocked_time import (
     HasOverlappingBlockedTimeArgs,
@@ -245,31 +241,6 @@ async def _upsert_appointment(
         )
 
         await _has_overlapping_blocked_times(args, supabase)
-
-        # [CROSS CHECK 4]: Appointment does not clash with other staff appointments
-        args = HasOverlappingStaffAppointmentsArgs(
-            staff_id=staff_id,
-            staff=staff,
-            date_string=date_string,
-            target_start_time=appointment_start_time,
-            target_end_time=appointment_end_time,
-            type="Appointment",
-            appointment_id=appointment_id,  # Exclude itself
-        )
-
-        await _has_overlapping_staff_appointments(args, supabase)
-
-        # [CROSS CHECK 5]: Appointment does not clash with other customer appointments
-        args = HasOverlappingCustomerAppointmentsArgs(
-            appointment_id=appointment_id,  # Exclude itself
-            customer_id=customer_id,
-            customer=customer,
-            date_string=date_string,
-            target_start_time=appointment_start_time,
-            target_end_time=appointment_end_time,
-        )
-
-        await _has_overlapping_customer_appointments(args, supabase)
 
         # After passing the cross checks
         # Then only do we perform the upsert
