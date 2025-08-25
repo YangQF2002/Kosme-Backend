@@ -38,6 +38,7 @@ async def search_customers(
             return customers.data
 
         lower_query = search_query.lower()
+
         customers = (
             await supabase.from_("customers")
             .select("*")
