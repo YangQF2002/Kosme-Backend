@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
 
 from app.routes.appointment.appointment import appointment_router
 from app.routes.customer import customer_router
@@ -13,6 +14,24 @@ from app.routes.staff.staff import staff_router
 from app.routes.staff.time_off import time_off_router
 
 app = FastAPI()
+
+
+""" Guard against web crawlers (recursively follows links) """
+
+
+# Middleware to augment responses
+@app.middleware("http")
+async def add_robot_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Robots-Tag"] = "noindex, nofollow"
+    return response
+
+
+# Robots.txt file to tell search engine to restrict crawlers from URL access
+@app.get("/robots.txt", response_class=PlainTextResponse)
+def robots():
+    data = """User-agent: *\nDisallow: /"""
+    return data
 
 
 """ Router registration """
